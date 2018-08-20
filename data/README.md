@@ -2,7 +2,7 @@
 
 ## raw
 
-* `9606.protein.links.v10.5.txt.gz`: Human protein interactions from string database (**preferred**)
+* `9606.protein.links.v10.5.txt.gz`: Human protein interactions from STRING database (**preferred**)
 * `BIOGRID-ORGANISM-Homo_sapiens-3.4.163.tab2.txt.gz`: Human gene interactions from BIOGRID database
 * `LOCATE_human_v6_20081121.xml.gz`: Human protein subcellular localizations from LOCATE database
 * `LOCATE_v6.xsd.gz`: LOCATE database XML schema
