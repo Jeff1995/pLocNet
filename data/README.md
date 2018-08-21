@@ -18,3 +18,7 @@
 * `localization.tsv.gz`: Subcellular locations extracted from `uniprot_sprot.xml.gz`
 * `ppi.txt.gz`: Directly links to `9606.protein.links.v10.5.txt.gz`
 * `sequence.fasta.gz`: Protein sequences extracted from `uniprot_sprot.xml.gz`
+    - `sequenceNN.fasta.gz`: Cluster representatives after clustering `sequence.fasta.gz` with `cd-hit`
+    - `sequenceNN.clstr.gz`: Cluster members after clustering `sequence.fasta.gz` with `cd-hit`
+    - `NN` is the `cd-hit` similarity threshold, e.g. NN=90 means that sequences with \>90% sequence similarity
+      are clustered together, i.e. remaining cluster representatives have maximal similarity \<90%
