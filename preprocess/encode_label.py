@@ -3,22 +3,13 @@
 import numpy as np
 import pandas as pd
 import h5py
-
-
-@np.vectorize
-def encode(x):
-    return str(x).encode("utf-8")
-
-
-@np.vectorize
-def decode(x):
-    return x.decode("utf-8")
+import utils
 
 
 print("Reading data...")
 df = pd.read_table("../data/preprocessed/localization.tsv.gz", header=None)
 df.columns = ["protein_id", "localization", "evidence"]
-used_labels = decode(np.loadtxt(
+used_labels = utils.decode(np.loadtxt(
     "../data/preprocessed/used_labels.txt",
     dtype=bytes, delimiter="\n"
 ))
@@ -52,5 +43,5 @@ with h5py.File("../data/preprocessed/localization.h5", "w") as f:
         "compression_opts": 9
     }
     f.create_dataset("mat", data=label_mat, **opts)
-    f.create_dataset("protein_id", data=encode(protein_id), **opts)
-    f.create_dataset("label", data=encode(used_labels), **opts)
+    f.create_dataset("protein_id", data=utils.encode(protein_id), **opts)
+    f.create_dataset("label", data=utils.encode(used_labels), **opts)
