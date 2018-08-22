@@ -1,0 +1,11 @@
+Nucleus
+Cytoplasm
+Cell membrane
+Membrane
+Secreted
+Cytoskeleton
+Cell projection
+Endoplasmic reticulum membrane
+Cell junction
+Mitochondrion
+Golgi apparatus
