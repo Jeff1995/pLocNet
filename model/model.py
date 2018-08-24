@@ -22,8 +22,8 @@ class Model(object):
         self._init_session(**kwargs)
         self._init_graph(**kwargs)
 
-    def compile(self, lr, **kwargs):
-        self._compile(lr, **kwargs)
+    def compile(self, **kwargs):
+        self._compile(**kwargs)
         self.saver = tf.train.Saver(max_to_keep=1)
         self.sess.run(tf.global_variables_initializer())
         self.summarizer = tf.summary.FileWriter(
@@ -40,7 +40,7 @@ class Model(object):
         raise NotImplementedError(
             "Calling virtual `_init_graph` from `Model`!")
 
-    def _compile(self, lr, **kwargs):
+    def _compile(self, **kwargs):
         raise NotImplementedError(
             "Calling virtual `_compile` from `Model`!")
 

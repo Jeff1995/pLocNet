@@ -4,12 +4,11 @@ import os
 import random
 import argparse
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 import h5py
 import utils
 from sklearn.metrics import roc_auc_score
-from mlp import MLPPredictor
+from cnn import CNNPredictor
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 
@@ -30,23 +29,30 @@ def parse_args():
 
 def read_data(x, y):
     with h5py.File(x, "r") as f:
-        embedding = pd.DataFrame(
-            data=f["protein_vec"].value,
-            index=decode(f["protein_id"].value)
-        )
+        seq = f["mat"].value
+        seq_idx = decode(f["protein_id"].value)
+        unique_idx, count = np.unique(seq_idx, return_counts=True)
+        unique_idx = unique_idx[count == 1]
+        mask = np.in1d(seq_idx, unique_idx)
+        seq, seq_idx = seq[mask], seq_idx[mask]
+        seq_map = {seq_idx[i]: i for i in range(len(seq_idx))}
     with h5py.File(y, "r") as f:
-        localization = pd.DataFrame(
-            data=f["mat"].value,
-            index=decode(f["protein_id"].value),
-            columns=decode(f["label"].value)
-        )
-        localization = localization.iloc[:, 0:3]
-    merged = pd.merge(embedding, localization,
-                      left_index=True, right_index=True)
+        loc = f["mat"].value[:, 0:3]
+        loc_idx = decode(f["protein_id"].value)
+        unique_idx, count = np.unique(loc_idx, return_counts=True)
+        unique_idx = unique_idx[count == 1]
+        mask = np.in1d(loc_idx, unique_idx)
+        loc, loc_idx = loc[mask], loc_idx[mask]
+        loc_map = {loc_idx[i]: i for i in range(len(loc_idx))}
+    common_names = np.intersect1d(seq_idx, loc_idx)
     return utils.DataDict([
-        ("x", merged.values[:, :embedding.shape[1]]),
-        ("y", merged.values[:, embedding.shape[1]:]),
-        ("protein_id", merged.index.values)
+        ("x", seq[np.vectorize(
+            lambda x, seq_map=seq_map: seq_map[x]
+        )(common_names)]),
+        ("y", loc[np.vectorize(
+            lambda x, loc_map=loc_map: loc_map[x]
+        )(common_names)]),
+        ("protein_id", common_names)
     ])
 
 
@@ -76,10 +82,12 @@ def main():
     test_data_dict = data_dict[train_size:]
 
     print("Building model...")
-    model = MLPPredictor(
+    model = CNNPredictor(
         path=cmd_args.output_path,
-        input_dim=train_data_dict["x"].shape[1],
-        fc_depth=2, fc_dim=500, class_num=data_dict["y"].shape[1]
+        input_len=train_data_dict["x"].shape[1],
+        input_channel=train_data_dict["x"].shape[2],
+        kernel_num=500, kernel_len=10,
+        fc_depth=1, fc_dim=500, class_num=data_dict["y"].shape[1]
     )
     model.compile(lr=1e-4)
 
@@ -92,6 +100,7 @@ def main():
     evaluate(model, train_data_dict)
     print("#### Testing set ####")
     evaluate(model, test_data_dict)
+
 
 if __name__ == "__main__":
     main()

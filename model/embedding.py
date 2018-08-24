@@ -7,8 +7,8 @@ import utils
 class ProteinEmbedding(model.Model):
 
     def _init_graph(
-        self, input_len=5000, input_channel=20,
-        kernel_num=100, kernel_len=5,
+        self, input_len, input_channel,
+        kernel_num=100, kernel_len=3,
         fc_depth=1, fc_dim=100, latent_dim=10,
         noise_distribution=None, eps=1e-8, **kwargs
     ):
@@ -18,6 +18,9 @@ class ProteinEmbedding(model.Model):
             self.sequence = tf.placeholder(
                 dtype=tf.float32, shape=(None, input_len, input_channel),
                 name="sequence"
+            )
+            self.training_flag = tf.placeholder(
+                dtype=tf.bool, shape=(), name="training_flag"
             )
 
         with tf.name_scope("cnn/noise"):
@@ -32,16 +35,37 @@ class ProteinEmbedding(model.Model):
         with tf.variable_scope("cnn/conv", reuse=tf.AUTO_REUSE):
             ptr = tf.nn.relu(tf.layers.conv1d(
                 self.sequence, filters=kernel_num, kernel_size=kernel_len,
-                padding="same", use_bias=False, name="conv1d"
+                padding="valid", use_bias=False, name="conv1d"
             ))
             noise = tf.nn.relu(tf.layers.conv1d(
                 noise, filters=kernel_num, kernel_size=kernel_len,
-                padding="same", use_bias=False, name="conv1d"
+                padding="valid", use_bias=False, name="conv1d"
             ))  # Weights are shared
 
-        with tf.name_scope("cnn/pool"):  # Global max pooling
-            ptr = self.conv = tf.reduce_max(ptr, axis=1)
-            noise = tf.reduce_max(noise, axis=1)
+        with tf.name_scope("cnn/pool"):  # Global valid pooling
+            seq_len = tf.reduce_sum(self.sequence, axis=(1, 2), name="seq_len")
+            valid_mask = tf.sequence_mask(
+                lengths=seq_len - (kernel_len - 1),
+                maxlen=input_len - (kernel_len - 1)
+            )
+            ptr = self.conv = tf.scan(
+                self._valid_pooling,
+                tf.concat([tf.expand_dims(
+                    tf.cast(valid_mask, dtype=tf.float32), axis=2
+                ), ptr], axis=2),
+                initializer=tf.constant(
+                    0, shape=(kernel_num, ), dtype=tf.float32
+                ), parallel_iterations=32, back_prop=True, swap_memory=False
+            )
+            noise = tf.scan(
+                self._valid_pooling,
+                tf.concat([tf.expand_dims(
+                    tf.cast(valid_mask, dtype=tf.float32), axis=2
+                ), noise], axis=2),
+                initializer=tf.constant(
+                    0, shape=(kernel_num, ), dtype=tf.float32
+                ), parallel_iterations=32, back_prop=True, swap_memory=False
+            )
             ptr = tf.concat([ptr, noise], axis=0)
 
         with tf.variable_scope("cnn/fc"):
@@ -65,12 +89,20 @@ class ProteinEmbedding(model.Model):
         ptr = self.conv
         with tf.variable_scope("vae/encoder"):
             for l in range(fc_depth):
+                ptr = tf.layers.batch_normalization(
+                    ptr, center=True, scale=True,
+                    training=self.training_flag
+                )  # For stability
                 ptr = tf.layers.dense(
                     ptr, units=fc_dim, activation=tf.nn.leaky_relu,
                     name="layer_%d" % l
                 )
-            self.zm = tf.layers.dense(ptr, units=latent_dim)
-            self.log_zv = tf.layers.dense(ptr, units=latent_dim)
+            ptr = tf.layers.batch_normalization(
+                ptr, center=True, scale=True,
+                training=self.training_flag
+            )  # For stability
+            self.zm = tf.layers.dense(ptr, units=latent_dim, name="zm")
+            self.log_zv = tf.layers.dense(ptr, units=latent_dim, name="log_zv")
 
         with tf.name_scope("vae/stochastic"):
             ptr = tf.random_normal(
@@ -85,15 +117,16 @@ class ProteinEmbedding(model.Model):
                     name="layer_%d" % l
                 )
             xa = tf.layers.dense(ptr, units=kernel_num,
-                                 activation=tf.nn.softplus)
-            log_xb = tf.layers.dense(ptr, units=kernel_num)
+                                 activation=tf.nn.softplus, name="xa")
+            # log_xb = tf.layers.dense(ptr, units=kernel_num, name="log_xb")
+            log_xb = tf.ones_like(xa, name="log_xb")
 
         with tf.name_scope("vae/loss"):
             log_likelihood = tf.reduce_sum(
                 xa * log_xb - tf.lgamma(xa) +
                 (xa - 1) * tf.log(eps + self.conv) -
                 tf.exp(log_xb) * self.conv,
-                axis=1
+                axis=1, name="log_likelihood"
             )  # Gamma distribution
             kl = 0.5 * tf.reduce_sum(
                 tf.square(self.zm) + tf.exp(self.log_zv) - self.log_zv - 1,
@@ -101,18 +134,21 @@ class ProteinEmbedding(model.Model):
             )
             self.vae_loss = -tf.reduce_mean(log_likelihood - kl)
 
-    def _compile(self, lr, **kwargs):
-        with tf.name_scope("optimize"):
-            self.cnn_step = tf.train.AdamOptimizer(lr).minimize(
+    def _compile(self, **kwargs):
+        with tf.name_scope("optimize_cnn"):
+            self.cnn_step = tf.train.AdamOptimizer(1e-3).minimize(
                 self.cnn_loss, var_list=tf.get_collection(
                     tf.GraphKeys.TRAINABLE_VARIABLES, "cnn"
                 )
             )
-            self.vae_step = tf.train.AdamOptimizer(lr).minimize(
-                self.vae_loss, var_list=tf.get_collection(
-                    tf.GraphKeys.TRAINABLE_VARIABLES, "vae"
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            with tf.name_scope("optimize_vae"):
+                self.vae_step = tf.train.AdamOptimizer(1e-5).minimize(
+                    self.vae_loss, var_list=tf.get_collection(
+                        tf.GraphKeys.TRAINABLE_VARIABLES, "vae"
+                    )
                 )
-            )
 
     def _fit_epoch(self, data_dict, batch_size, stage=None, **kwargs):
         if stage == "CNN":
@@ -161,7 +197,8 @@ class ProteinEmbedding(model.Model):
         def _train(data_dict):
             nonlocal vae_loss
             feed_dict = {
-                self.sequence: data_dict["sequence"]
+                self.sequence: data_dict["sequence"],
+                self.training_flag: True
             }
             _, batch_loss = self.sess.run(
                 [self.vae_step, self.vae_loss],
@@ -210,7 +247,8 @@ class ProteinEmbedding(model.Model):
         def _val(data_dict):
             nonlocal vae_loss
             feed_dict = {
-                self.sequence: data_dict["sequence"]
+                self.sequence: data_dict["sequence"],
+                self.training_flag: False
             }
             batch_loss = self.sess.run(
                 self.vae_loss,
@@ -236,7 +274,8 @@ class ProteinEmbedding(model.Model):
         @utils.minibatch(batch_size, desc="fetch", use_last=True)
         def _fetch(data_dict, result):
             feed_dict = {
-                self.sequence: data_dict["sequence"]
+                self.sequence: data_dict["sequence"],
+                self.training_flag: False
             }
             result[:] = self.sess.run(tensor, feed_dict=feed_dict)
         _fetch(data_dict, result)
@@ -249,3 +288,9 @@ class ProteinEmbedding(model.Model):
 
     def inference(self, data_dict, batch_size=128):
         return self.fetch(self.zm, data_dict, batch_size)
+
+    @staticmethod
+    def _valid_pooling(init, packed):
+        mask = tf.cast(packed[:, 0], tf.bool)
+        x = packed[:, 1:]
+        return tf.reduce_sum(tf.boolean_mask(x, mask), axis=0)

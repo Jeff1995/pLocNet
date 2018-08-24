@@ -51,11 +51,12 @@ def main():
         fc_depth=1, fc_dim=1000, latent_dim=100,
         noise_distribution=aa_freq
     )
-    model.compile(lr=1e-3)
+    model.compile()
 
     print("Fitting CNN...")
     model.fit(data_dict, val_split=0.1, batch_size=128,
               epoch=50, patience=3, stage="CNN")
+    import ipdb; ipdb.set_trace()
     print("Fitting VAE...")
     model.fit(data_dict, val_split=0.1, batch_size=128,
               epoch=100, patience=5, stage="VAE")
