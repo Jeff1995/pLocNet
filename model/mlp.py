@@ -8,7 +8,7 @@ class MLPPredictor(model.Model):
 
     def _init_graph(
         self, input_dim=50, fc_depth=1, fc_dim=100,
-        class_num=1, **kwargs
+        class_num=1, dropout_rate=0.5, **kwargs
     ):
 
         with tf.name_scope("placeholder"):
@@ -20,12 +20,22 @@ class MLPPredictor(model.Model):
                 dtype=tf.float32, shape=(None, class_num),
                 name="label"
             )
+            self.training_flag = tf.placeholder(
+                dtype=tf.bool, shape=(), name="training_flag"
+            )
 
         with tf.variable_scope("fc"):
             for l in range(fc_depth):
                 ptr = tf.layers.dense(
                     ptr, units=fc_dim, activation=tf.nn.leaky_relu,
                     name="layer_%d" % l
+                )
+                ptr = tf.layers.batch_normalization(
+                    ptr, center=True, scale=True,
+                    training=self.training_flag
+                )
+                ptr = tf.layers.dropout(
+                    ptr, rate=dropout_rate, training=self.training_flag
                 )
             self.pred = tf.layers.dense(ptr, units=class_num)
 
@@ -37,8 +47,10 @@ class MLPPredictor(model.Model):
                 )
 
     def _compile(self, lr, **kwargs):
-        with tf.name_scope("optimize"):
-            self.step = tf.train.AdamOptimizer(lr).minimize(self.loss)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            with tf.name_scope("optimize"):
+                self.step = tf.train.AdamOptimizer(lr).minimize(self.loss)
 
     def _fit_epoch(self, data_dict, batch_size, **kwargs):
         loss = 0
@@ -48,7 +60,8 @@ class MLPPredictor(model.Model):
             nonlocal loss
             feed_dict = {
                 self.x: data_dict["x"],
-                self.y: data_dict["y"]
+                self.y: data_dict["y"],
+                self.training_flag: True
             }
             _, batch_loss = self.sess.run(
                 [self.step, self.loss],
@@ -73,7 +86,8 @@ class MLPPredictor(model.Model):
             nonlocal loss
             feed_dict = {
                 self.x: data_dict["x"],
-                self.y: data_dict["y"]
+                self.y: data_dict["y"],
+                self.training_flag: False
             }
             batch_loss = self.sess.run(
                 self.loss,
@@ -99,7 +113,8 @@ class MLPPredictor(model.Model):
         @utils.minibatch(batch_size, desc="fetch", use_last=True)
         def _fetch(data_dict, result):
             feed_dict = {
-                self.x: data_dict["x"]
+                self.x: data_dict["x"],
+                self.training_flag: False
             }
             result[:] = self.sess.run(tensor, feed_dict=feed_dict)
         _fetch(data_dict, result)

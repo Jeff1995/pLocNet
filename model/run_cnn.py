@@ -7,13 +7,8 @@ import numpy as np
 import tensorflow as tf
 import h5py
 import utils
-from sklearn.metrics import roc_auc_score
 from cnn import CNNPredictor
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-
-
-encode = np.vectorize(lambda x: str(x).encode("utf-8"))
-decode = np.vectorize(lambda x: x.decode("utf-8"))
 
 
 def parse_args():
@@ -24,25 +19,23 @@ def parse_args():
                         type=str, required=True)
     parser.add_argument("-s", "--seed", dest="seed", type=int, default=None)
     parser.add_argument("-d", "--device", dest="device", type=str, default="")
+    parser.add_argument("-n", "--no-fit", dest="no_fit",
+                        default=False, action="store_true")
     return parser.parse_args()
 
 
 def read_data(x, y):
     with h5py.File(x, "r") as f:
-        seq = f["mat"].value
-        seq_idx = decode(f["protein_id"].value)
-        unique_idx, count = np.unique(seq_idx, return_counts=True)
-        unique_idx = unique_idx[count == 1]
-        mask = np.in1d(seq_idx, unique_idx)
-        seq, seq_idx = seq[mask], seq_idx[mask]
+        seq_idx, seq = utils.unique(
+            utils.decode(f["protein_id"].value),
+            f["mat"].value
+        )
         seq_map = {seq_idx[i]: i for i in range(len(seq_idx))}
     with h5py.File(y, "r") as f:
-        loc = f["mat"].value[:, 0:3]
-        loc_idx = decode(f["protein_id"].value)
-        unique_idx, count = np.unique(loc_idx, return_counts=True)
-        unique_idx = unique_idx[count == 1]
-        mask = np.in1d(loc_idx, unique_idx)
-        loc, loc_idx = loc[mask], loc_idx[mask]
+        loc_idx, loc = utils.unique(
+            utils.decode(f["protein_id"].value),
+            f["mat"].value[:, 0:3]
+        )
         loc_map = {loc_idx[i]: i for i in range(len(loc_idx))}
     common_names = np.intersect1d(seq_idx, loc_idx)
     return utils.DataDict([
@@ -54,16 +47,6 @@ def read_data(x, y):
         )(common_names)]),
         ("protein_id", common_names)
     ])
-
-
-def evaluate(model, data_dict):
-    true = data_dict["y"]
-    pred = model.predict(data_dict)
-    auc = np.vectorize(
-        lambda i, true=true, pred=pred: roc_auc_score(true[:, i], pred[:, i])
-    )(np.arange(true.shape[1]))
-    print("AUC: ", end="")
-    print(auc)
 
 
 def main():
@@ -87,19 +70,24 @@ def main():
         input_len=train_data_dict["x"].shape[1],
         input_channel=train_data_dict["x"].shape[2],
         kernel_num=500, kernel_len=10,
-        fc_depth=1, fc_dim=500, class_num=data_dict["y"].shape[1]
+        fc_depth=2, fc_dim=500, class_num=data_dict["y"].shape[1]
     )
     model.compile(lr=1e-4)
+    if os.path.exists(os.path.join(cmd_args.output_path, "final")):
+        print("Loading existing weights...")
+        model.load(os.path.join(cmd_args.output_path, "final"))
 
-    print("Fitting model...")
-    model.fit(train_data_dict, val_split=0.1, batch_size=128,
-              epoch=100, patience=20)
+    if not cmd_args.no_fit:
+        print("Fitting model...")
+        model.fit(train_data_dict, val_split=0.1, batch_size=128,
+                  epoch=100, patience=20)
+        model.save(os.path.join(cmd_args.output_path, "final"))
 
     print("Evaluating result...")
     print("#### Training set ####")
-    evaluate(model, train_data_dict)
+    utils.evaluate(model, train_data_dict)
     print("#### Testing set ####")
-    evaluate(model, test_data_dict)
+    utils.evaluate(model, test_data_dict)
 
 
 if __name__ == "__main__":

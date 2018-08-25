@@ -8,13 +8,8 @@ import pandas as pd
 import tensorflow as tf
 import h5py
 import utils
-from sklearn.metrics import roc_auc_score
 from mlp import MLPPredictor
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-
-
-encode = np.vectorize(lambda x: str(x).encode("utf-8"))
-decode = np.vectorize(lambda x: x.decode("utf-8"))
 
 
 def parse_args():
@@ -25,39 +20,35 @@ def parse_args():
                         type=str, required=True)
     parser.add_argument("-s", "--seed", dest="seed", type=int, default=None)
     parser.add_argument("-d", "--device", dest="device", type=str, default="")
+    parser.add_argument("-n", "--no-fit", dest="no_fit",
+                        default=False, action="store_true")
     return parser.parse_args()
 
 
 def read_data(x, y):
     with h5py.File(x, "r") as f:
-        embedding = pd.DataFrame(
-            data=f["protein_vec"].value,
-            index=decode(f["protein_id"].value)
+        embedding_idx, embedding = utils.unique(
+            utils.decode(f["protein_id"].value),
+            f["protein_vec"].value
         )
+        embedding_map = {
+            embedding_idx[i]: i for i in range(len(embedding_idx))}
     with h5py.File(y, "r") as f:
-        localization = pd.DataFrame(
-            data=f["mat"].value,
-            index=decode(f["protein_id"].value),
-            columns=decode(f["label"].value)
+        loc_idx, loc = utils.unique(
+            utils.decode(f["protein_id"].value),
+            f["mat"][:, 0:3]
         )
-        localization = localization.iloc[:, 0:3]
-    merged = pd.merge(embedding, localization,
-                      left_index=True, right_index=True)
+        loc_map = {loc_idx[i]: i for i in range(len(loc_idx))}
+    common_names = np.intersect1d(embedding_idx, loc_idx)
     return utils.DataDict([
-        ("x", merged.values[:, :embedding.shape[1]]),
-        ("y", merged.values[:, embedding.shape[1]:]),
-        ("protein_id", merged.index.values)
+        ("x", embedding[np.vectorize(
+            lambda x, seq_map=embedding_map: seq_map[x]
+        )(common_names)]),
+        ("y", loc[np.vectorize(
+            lambda x, loc_map=loc_map: loc_map[x]
+        )(common_names)]),
+        ("protein_id", common_names)
     ])
-
-
-def evaluate(model, data_dict):
-    true = data_dict["y"]
-    pred = model.predict(data_dict)
-    auc = np.vectorize(
-        lambda i, true=true, pred=pred: roc_auc_score(true[:, i], pred[:, i])
-    )(np.arange(true.shape[1]))
-    print("AUC: ", end="")
-    print(auc)
 
 
 def main():
@@ -79,19 +70,25 @@ def main():
     model = MLPPredictor(
         path=cmd_args.output_path,
         input_dim=train_data_dict["x"].shape[1],
-        fc_depth=2, fc_dim=500, class_num=data_dict["y"].shape[1]
+        fc_depth=5, fc_dim=500, class_num=data_dict["y"].shape[1]
     )
     model.compile(lr=1e-4)
+    if os.path.exists(os.path.join(cmd_args.output_path, "final")):
+        print("Loading existing weights...")
+        model.load(os.path.join(cmd_args.output_path, "final"))
 
-    print("Fitting model...")
-    model.fit(train_data_dict, val_split=0.1, batch_size=128,
-              epoch=100, patience=20)
+    if not cmd_args.no_fit:
+        print("Fitting model...")
+        model.fit(train_data_dict, val_split=0.1, batch_size=128,
+                  epoch=1000, patience=20)
+        model.save(os.path.join(cmd_args.output_path, "final"))
 
     print("Evaluating result...")
     print("#### Training set ####")
-    evaluate(model, train_data_dict)
+    utils.evaluate(model, train_data_dict)
     print("#### Testing set ####")
-    evaluate(model, test_data_dict)
+    utils.evaluate(model, test_data_dict)
+
 
 if __name__ == "__main__":
     main()

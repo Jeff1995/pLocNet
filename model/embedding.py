@@ -8,9 +8,10 @@ class ProteinEmbedding(model.Model):
 
     def _init_graph(
         self, input_len, input_channel,
-        kernel_num=100, kernel_len=3,
+        kernel_num=100, kernel_len=3, pool_size=10,
         fc_depth=1, fc_dim=100, latent_dim=10,
-        noise_distribution=None, eps=1e-8, **kwargs
+        noise_distribution=None, dropout_rate=0.5,
+        eps=1e-8, **kwargs
     ):
 
         # CNN
@@ -20,8 +21,7 @@ class ProteinEmbedding(model.Model):
                 name="sequence"
             )
             self.training_flag = tf.placeholder(
-                dtype=tf.bool, shape=(), name="training_flag"
-            )
+                dtype=tf.bool, shape=(), name="training_flag")
 
         with tf.name_scope("cnn/noise"):
             noise_distribution = tf.constant(noise_distribution) \
@@ -48,32 +48,21 @@ class ProteinEmbedding(model.Model):
                 lengths=seq_len - (kernel_len - 1),
                 maxlen=input_len - (kernel_len - 1)
             )
-            ptr = self.conv = tf.scan(
-                self._valid_pooling,
-                tf.concat([tf.expand_dims(
-                    tf.cast(valid_mask, dtype=tf.float32), axis=2
-                ), ptr], axis=2),
-                initializer=tf.constant(
-                    0, shape=(kernel_num, ), dtype=tf.float32
-                ), parallel_iterations=32, back_prop=True, swap_memory=False
-            )
-            noise = tf.scan(
-                self._valid_pooling,
-                tf.concat([tf.expand_dims(
-                    tf.cast(valid_mask, dtype=tf.float32), axis=2
-                ), noise], axis=2),
-                initializer=tf.constant(
-                    0, shape=(kernel_num, ), dtype=tf.float32
-                ), parallel_iterations=32, back_prop=True, swap_memory=False
-            )
+            ptr = self.conv = utils.valid_kmaxpooling(
+                ptr, valid_mask, k=pool_size)
+            noise = utils.valid_kmaxpooling(noise, valid_mask, k=pool_size)
             ptr = tf.concat([ptr, noise], axis=0)
 
         with tf.variable_scope("cnn/fc"):
+            ptr = tf.layers.dropout(
+                ptr, rate=dropout_rate, training=self.training_flag)
             for l in range(fc_depth):
                 ptr = tf.layers.dense(
                     ptr, units=fc_dim, activation=tf.nn.leaky_relu,
                     name="layer_%d" % l
                 )
+                ptr = tf.layers.dropout(
+                    ptr, rate=dropout_rate, training=self.training_flag)
             ptr = tf.layers.dense(ptr, units=1)
 
         with tf.name_scope("cnn/label"):
@@ -89,18 +78,14 @@ class ProteinEmbedding(model.Model):
         ptr = self.conv
         with tf.variable_scope("vae/encoder"):
             for l in range(fc_depth):
-                ptr = tf.layers.batch_normalization(
-                    ptr, center=True, scale=True,
-                    training=self.training_flag
-                )  # For stability
                 ptr = tf.layers.dense(
                     ptr, units=fc_dim, activation=tf.nn.leaky_relu,
                     name="layer_%d" % l
                 )
-            ptr = tf.layers.batch_normalization(
-                ptr, center=True, scale=True,
-                training=self.training_flag
-            )  # For stability
+                ptr = tf.layers.batch_normalization(
+                    ptr, center=True, scale=True,
+                    training=self.training_flag
+                )
             self.zm = tf.layers.dense(ptr, units=latent_dim, name="zm")
             self.log_zv = tf.layers.dense(ptr, units=latent_dim, name="log_zv")
 
@@ -118,8 +103,8 @@ class ProteinEmbedding(model.Model):
                 )
             xa = tf.layers.dense(ptr, units=kernel_num,
                                  activation=tf.nn.softplus, name="xa")
-            # log_xb = tf.layers.dense(ptr, units=kernel_num, name="log_xb")
-            log_xb = tf.ones_like(xa, name="log_xb")
+            log_xb = tf.layers.dense(ptr, units=kernel_num, name="log_xb")
+            # log_xb = tf.ones_like(xa, name="log_xb")
 
         with tf.name_scope("vae/loss"):
             log_likelihood = tf.reduce_sum(
@@ -144,7 +129,7 @@ class ProteinEmbedding(model.Model):
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
             with tf.name_scope("optimize_vae"):
-                self.vae_step = tf.train.AdamOptimizer(1e-5).minimize(
+                self.vae_step = tf.train.AdamOptimizer(1e-3).minimize(
                     self.vae_loss, var_list=tf.get_collection(
                         tf.GraphKeys.TRAINABLE_VARIABLES, "vae"
                     )
@@ -173,7 +158,8 @@ class ProteinEmbedding(model.Model):
         def _train(data_dict):
             nonlocal cnn_loss
             feed_dict = {
-                self.sequence: data_dict["sequence"]
+                self.sequence: data_dict["sequence"],
+                self.training_flag: True
             }
             _, batch_loss = self.sess.run(
                 [self.cnn_step, self.cnn_loss],
@@ -222,7 +208,8 @@ class ProteinEmbedding(model.Model):
         def _val(data_dict):
             nonlocal cnn_loss
             feed_dict = {
-                self.sequence: data_dict["sequence"]
+                self.sequence: data_dict["sequence"],
+                self.training_flag: False
             }
             batch_loss = self.sess.run(
                 self.cnn_loss,
@@ -288,9 +275,3 @@ class ProteinEmbedding(model.Model):
 
     def inference(self, data_dict, batch_size=128):
         return self.fetch(self.zm, data_dict, batch_size)
-
-    @staticmethod
-    def _valid_pooling(init, packed):
-        mask = tf.cast(packed[:, 0], tf.bool)
-        x = packed[:, 1:]
-        return tf.reduce_sum(tf.boolean_mask(x, mask), axis=0)

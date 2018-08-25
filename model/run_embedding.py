@@ -18,6 +18,8 @@ def parse_args():
                         type=str, required=True)
     parser.add_argument("-s", "--seed", dest="seed", type=int, default=None)
     parser.add_argument("-d", "--device", dest="device", type=str, default="")
+    parser.add_argument("-n", "--no-fit", dest="no_fit",
+                        default=False, action="store_true")
     return parser.parse_args()
 
 
@@ -52,14 +54,22 @@ def main():
         noise_distribution=aa_freq
     )
     model.compile()
+    if os.path.exists(os.path.join(cmd_args.output_path, "final-2")):
+        print("Loading existing weights...")
+        model.load(os.path.join(cmd_args.output_path, "final-2"))
+    elif os.path.exists(os.path.join(cmd_args.output_path, "final-1")):
+        print("Loading existing weights...")
+        model.load(os.path.join(cmd_args.output_path, "final-1"))
 
-    print("Fitting CNN...")
-    model.fit(data_dict, val_split=0.1, batch_size=128,
-              epoch=50, patience=3, stage="CNN")
-    import ipdb; ipdb.set_trace()
-    print("Fitting VAE...")
-    model.fit(data_dict, val_split=0.1, batch_size=128,
-              epoch=100, patience=5, stage="VAE")
+    if not cmd_args.no_fit:
+        print("Fitting CNN...")
+        model.fit(data_dict, val_split=0.1, batch_size=128,
+                  epoch=50, patience=3, stage="CNN")
+        model.save(os.path.join(cmd_args.output_path, "final-1"))
+        print("Fitting VAE...")
+        model.fit(data_dict, val_split=0.1, batch_size=128,
+                  epoch=100, patience=5, stage="VAE")
+        model.save(os.path.join(cmd_args.output_path, "final-2"))
 
     print("Saving result...")
     protein_vec = model.inference(data_dict)

@@ -1,10 +1,15 @@
 import functools
 from collections import OrderedDict
 import numpy as np
+import tensorflow as tf
 from tqdm import tqdm
+from sklearn.metrics import roc_auc_score
 
 
-# Wraps a batch function into minibatch version
+encode = np.vectorize(lambda x: str(x).encode("utf-8"))
+decode = np.vectorize(lambda x: x.decode("utf-8"))
+
+
 def minibatch(batch_size, desc, use_last=False):
     def minibatch_wrapper(func):
         @functools.wraps(func)
@@ -26,6 +31,46 @@ def minibatch(batch_size, desc, use_last=False):
                 func(*this_args, **kwargs)
         return wrapped_func
     return minibatch_wrapper
+
+
+def unique(idx, mat):
+    assert len(idx) == mat.shape[0]
+    unique_idx, count = np.unique(idx, return_counts=True)
+    unique_idx = unique_idx[count == 1]
+    mask = np.in1d(idx, unique_idx)
+    return idx[mask], mat[mask]
+
+
+def valid_kmaxpooling(ptr, mask, k=10, parallel_iterations=32):
+
+    def _valid_kmaxpooling(init, packed):
+        mask = tf.cast(packed[:, 0], tf.bool)
+        x = packed[:, 1:]
+        return tf.reduce_sum(tf.transpose(tf.nn.top_k(tf.transpose(
+            tf.boolean_mask(x, mask)
+        ), k=k, sorted=False)[0]), axis=0)
+
+    return tf.scan(
+        _valid_kmaxpooling,
+        tf.concat([tf.expand_dims(
+            tf.cast(mask, dtype=tf.float32), axis=2
+        ), ptr], axis=2),
+        initializer=tf.constant(
+            0, shape=(ptr.get_shape().as_list()[2], ),
+            dtype=tf.float32
+        ), parallel_iterations=parallel_iterations,
+        back_prop=True, swap_memory=False
+    )
+
+
+def evaluate(model, data_dict):
+    true = data_dict["y"]
+    pred = model.predict(data_dict)
+    auc = np.vectorize(
+        lambda i, true=true, pred=pred: roc_auc_score(true[:, i], pred[:, i])
+    )(np.arange(true.shape[1]))
+    print("AUC: ", end="")
+    print(auc)
 
 
 class DataDict(OrderedDict):

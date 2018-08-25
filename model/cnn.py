@@ -8,9 +8,9 @@ class CNNPredictor(model.Model):
 
     def _init_graph(
         self, input_len, input_channel,
-        kernel_num=100, kernel_len=3,
-        fc_depth=1, fc_dim=100,
-        class_num=1, **kwargs
+        kernel_num=100, kernel_len=3, pool_size=10,
+        fc_depth=1, fc_dim=100, class_num=1,
+        dropout_rate=0.5, **kwargs
     ):
 
         with tf.name_scope("placeholder"):
@@ -22,6 +22,8 @@ class CNNPredictor(model.Model):
                 dtype=tf.float32, shape=(None, class_num),
                 name="label"
             )
+            self.training_flag = tf.placeholder(
+                dtype=tf.bool, shape=(), name="training_flag")
 
         with tf.variable_scope("conv", reuse=tf.AUTO_REUSE):
             ptr = tf.nn.relu(tf.layers.conv1d(
@@ -35,15 +37,8 @@ class CNNPredictor(model.Model):
                 lengths=seq_len - (kernel_len - 1),
                 maxlen=input_len - (kernel_len - 1)
             )
-            ptr = self.conv = tf.scan(
-                self._valid_pooling,
-                tf.concat([tf.expand_dims(
-                    tf.cast(valid_mask, dtype=tf.float32), axis=2
-                ), ptr], axis=2),
-                initializer=tf.constant(
-                    0, shape=(kernel_num, ), dtype=tf.float32
-                ), parallel_iterations=32, back_prop=True, swap_memory=False
-            )
+            ptr = self.conv = utils.valid_kmaxpooling(
+                ptr, valid_mask, k=pool_size)
 
         with tf.variable_scope("fc"):
             for l in range(fc_depth):
@@ -51,6 +46,8 @@ class CNNPredictor(model.Model):
                     ptr, units=fc_dim, activation=tf.nn.leaky_relu,
                     name="layer_%d" % l
                 )
+                ptr = tf.layers.dropout(
+                    ptr, rate=dropout_rate, training=self.training_flag)
             self.pred = tf.layers.dense(ptr, units=class_num)
 
         with tf.name_scope("loss"):
@@ -72,7 +69,8 @@ class CNNPredictor(model.Model):
             nonlocal loss
             feed_dict = {
                 self.x: data_dict["x"],
-                self.y: data_dict["y"]
+                self.y: data_dict["y"],
+                self.training_flag: True
             }
             _, batch_loss = self.sess.run(
                 [self.step, self.loss],
@@ -97,7 +95,8 @@ class CNNPredictor(model.Model):
             nonlocal loss
             feed_dict = {
                 self.x: data_dict["x"],
-                self.y: data_dict["y"]
+                self.y: data_dict["y"],
+                self.training_flag: False
             }
             batch_loss = self.sess.run(
                 self.loss,
@@ -123,7 +122,8 @@ class CNNPredictor(model.Model):
         @utils.minibatch(batch_size, desc="fetch", use_last=True)
         def _fetch(data_dict, result):
             feed_dict = {
-                self.x: data_dict["x"]
+                self.x: data_dict["x"],
+                self.training_flag: False
             }
             result[:] = self.sess.run(tensor, feed_dict=feed_dict)
         _fetch(data_dict, result)
@@ -136,9 +136,3 @@ class CNNPredictor(model.Model):
 
     def predict(self, data_dict, batch_size=128):
         return self.fetch(self.pred, data_dict, batch_size)
-
-    @staticmethod
-    def _valid_pooling(init, packed):
-        mask = tf.cast(packed[:, 0], tf.bool)
-        x = packed[:, 1:]
-        return tf.reduce_sum(tf.boolean_mask(x, mask), axis=0)
