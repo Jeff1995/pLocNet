@@ -13,7 +13,7 @@ alphabet_idx = {
     alphabet[i]: i for i in range(len(alphabet))
 }
 
-len_cutoff = 5000
+len_cutoff = 2000
 
 print("Reading data...")
 protein_id_list, sequence_list = [], []
@@ -35,7 +35,7 @@ for i in tqdm(range(len(sequence_list)), unit="sequences"):
         seq_mat[i, j, alphabet_idx[sequence_list[i][j]]] = 1
 
 print("Saving result...")
-with h5py.File("../data/preprocessed/%s.h5" % sys.argv[1], "w") as f:
+with h5py.File("../data/preprocessed/%s_short.h5" % sys.argv[1], "w") as f:
     opts = {
         "compression": "gzip",
         "compression_opts": 9
