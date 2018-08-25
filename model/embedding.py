@@ -103,8 +103,9 @@ class ProteinEmbedding(model.Model):
                 )
             xa = tf.layers.dense(ptr, units=kernel_num,
                                  activation=tf.nn.softplus, name="xa")
-            log_xb = tf.layers.dense(ptr, units=kernel_num, name="log_xb")
-            # log_xb = tf.ones_like(xa, name="log_xb")
+            # log_xb = tf.layers.dense(ptr, units=kernel_num, name="log_xb")  # Encoded
+            log_xb = tf.ones_like(xa, name="log_xb")  # Fixed
+            # log_xb = tf.get_variable("log_xb", shape=(), dtype=tf.float32)  # Shared
 
         with tf.name_scope("vae/loss"):
             log_likelihood = tf.reduce_sum(
@@ -129,7 +130,7 @@ class ProteinEmbedding(model.Model):
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
             with tf.name_scope("optimize_vae"):
-                self.vae_step = tf.train.AdamOptimizer(1e-3).minimize(
+                self.vae_step = tf.train.AdamOptimizer(1e-4).minimize(
                     self.vae_loss, var_list=tf.get_collection(
                         tf.GraphKeys.TRAINABLE_VARIABLES, "vae"
                     )

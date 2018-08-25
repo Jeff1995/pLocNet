@@ -20,6 +20,10 @@ def parse_args():
     parser.add_argument("-d", "--device", dest="device", type=str, default="")
     parser.add_argument("-n", "--no-fit", dest="no_fit",
                         default=False, action="store_true")
+    parser.add_argument("--no-fit-cnn", dest="no_fit_cnn",
+                        default=False, action="store_true")
+    parser.add_argument("--no-fit-vae", dest="no_fit_vae",
+                        default=False, action="store_true")
     return parser.parse_args()
 
 
@@ -62,14 +66,16 @@ def main():
         model.load(os.path.join(cmd_args.output_path, "final-1"))
 
     if not cmd_args.no_fit:
-        print("Fitting CNN...")
-        model.fit(data_dict, val_split=0.1, batch_size=128,
-                  epoch=50, patience=3, stage="CNN")
-        model.save(os.path.join(cmd_args.output_path, "final-1"))
-        print("Fitting VAE...")
-        model.fit(data_dict, val_split=0.1, batch_size=128,
-                  epoch=100, patience=5, stage="VAE")
-        model.save(os.path.join(cmd_args.output_path, "final-2"))
+        if not cmd_args.no_fit_cnn:
+            print("Fitting CNN...")
+            model.fit(data_dict, val_split=0.1, batch_size=128,
+                      epoch=1000, patience=5, stage="CNN")
+            model.save(os.path.join(cmd_args.output_path, "final-1"))
+        if not cmd_args.no_fit_vae:
+            print("Fitting VAE...")
+            model.fit(data_dict, val_split=0.1, batch_size=128,
+                      epoch=1000, patience=5, stage="VAE")
+            model.save(os.path.join(cmd_args.output_path, "final-2"))
 
     print("Saving result...")
     protein_vec = model.inference(data_dict)

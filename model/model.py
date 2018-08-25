@@ -24,7 +24,6 @@ class Model(object):
 
     def compile(self, **kwargs):
         self._compile(**kwargs)
-        self.saver = tf.train.Saver(max_to_keep=1)
         self.sess.run(tf.global_variables_initializer())
         self.summarizer = tf.summary.FileWriter(
             os.path.join(self.path, "summary"),
@@ -47,10 +46,12 @@ class Model(object):
     def save(self, path):
         if not os.path.exists(path):
             os.makedirs(path)
-        self.saver.save(self.sess, os.path.join(path, "save.ckpt"))
+        tf.train.Saver(max_to_keep=1).save(
+            self.sess, os.path.join(path, "save.ckpt"))
 
     def load(self, path):
-        self.saver.restore(self.sess, os.path.join(path, "save.ckpt"))
+        tf.train.Saver(max_to_keep=1).restore(
+            self.sess, os.path.join(path, "save.ckpt"))
 
     def close(self):
         self.sess.close()
