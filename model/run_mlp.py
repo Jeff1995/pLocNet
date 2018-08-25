@@ -46,7 +46,7 @@ def read_data(x, y, subset=None):
             common_names = np.intersect1d(common_names, f["protein_id"].value)
     return utils.DataDict([
         ("x", embedding[np.vectorize(
-            lambda x, seq_map=embedding_map: seq_map[x]
+            lambda x, embedding_map=embedding_map: embedding_map[x]
         )(common_names)]),
         ("y", loc[np.vectorize(
             lambda x, loc_map=loc_map: loc_map[x]
