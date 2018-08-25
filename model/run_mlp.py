@@ -22,10 +22,11 @@ def parse_args():
     parser.add_argument("-d", "--device", dest="device", type=str, default="")
     parser.add_argument("-n", "--no-fit", dest="no_fit",
                         default=False, action="store_true")
+    parser.add_argument("-u", "--subset", dest="subset", type=str, default=None)
     return parser.parse_args()
 
 
-def read_data(x, y):
+def read_data(x, y, subset=None):
     with h5py.File(x, "r") as f:
         embedding_idx, embedding = utils.unique(
             utils.decode(f["protein_id"].value),
@@ -36,10 +37,13 @@ def read_data(x, y):
     with h5py.File(y, "r") as f:
         loc_idx, loc = utils.unique(
             utils.decode(f["protein_id"].value),
-            f["mat"][:, 0:3]
+            f["mat"].value
         )
         loc_map = {loc_idx[i]: i for i in range(len(loc_idx))}
     common_names = np.intersect1d(embedding_idx, loc_idx)
+    if subset:
+        with h5py.File(subset, "r") as f:
+            common_names = np.intersect1d(common_names, f["protein_id"].value)
     return utils.DataDict([
         ("x", embedding[np.vectorize(
             lambda x, seq_map=embedding_map: seq_map[x]
@@ -60,17 +64,22 @@ def main():
         tf.set_random_seed(cmd_args.seed)
 
     print("Reading data...")
-    data_dict = read_data(cmd_args.x, cmd_args.y)
+    data_dict = read_data(cmd_args.x, cmd_args.y, cmd_args.subset)
     data_dict = data_dict.shuffle()
     train_size = np.floor(float(data_dict.size()) * 0.8).astype(int)
     train_data_dict = data_dict[:train_size]
     test_data_dict = data_dict[train_size:]
 
     print("Building model...")
+    train_size = train_data_dict.size()
     model = MLPPredictor(
         path=cmd_args.output_path,
-        input_dim=train_data_dict["x"].shape[1],
-        fc_depth=5, fc_dim=500, class_num=data_dict["y"].shape[1]
+        input_dim=train_data_dict["x"].shape[1], fc_depth=5, fc_dim=500,
+        class_num=train_data_dict["y"].shape[1],
+        class_weights=[(
+            0.5 * train_size / (train_size - train_data_dict["y"][:, i].sum()),
+            0.5 * train_size / train_data_dict["y"][:, i].sum()
+        ) for i in range(train_data_dict["y"].shape[1])]
     )
     model.compile(lr=1e-4)
     if os.path.exists(os.path.join(cmd_args.output_path, "final")):

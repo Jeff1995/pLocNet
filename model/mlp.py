@@ -8,8 +8,10 @@ class MLPPredictor(model.Model):
 
     def _init_graph(
         self, input_dim=50, fc_depth=1, fc_dim=100,
-        class_num=1, dropout_rate=0.5, **kwargs
+        class_num=1, class_weights=None,
+        dropout_rate=0.5, **kwargs
     ):
+        assert class_weights is None or len(class_weights) == class_num
 
         with tf.name_scope("placeholder"):
             ptr = self.x = tf.placeholder(
@@ -44,6 +46,12 @@ class MLPPredictor(model.Model):
             for i in range(class_num):
                 self.loss += tf.losses.sigmoid_cross_entropy(
                     self.y[:, i], self.pred[:, i]
+                ) if class_weights is None else \
+                tf.losses.sigmoid_cross_entropy(
+                    self.y[:, i], self.pred[:, i],
+                    weights=self.y[:, i] * (
+                        class_weights[i][1] - class_weights[i][0]
+                    ) + class_weights[i][0]
                 )
 
     def _compile(self, lr, **kwargs):
