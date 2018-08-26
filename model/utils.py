@@ -33,12 +33,15 @@ def minibatch(batch_size, desc, use_last=False):
     return minibatch_wrapper
 
 
-def unique(idx, mat):
-    assert len(idx) == mat.shape[0]
+def unique(idx, mat=None):  # Only idx with single occurrence will be retained
+    if mat is not None:
+        assert len(idx) == mat.shape[0]
     unique_idx, count = np.unique(idx, return_counts=True)
     unique_idx = unique_idx[count == 1]
     mask = np.in1d(idx, unique_idx)
-    return idx[mask], mat[mask]
+    if mat is not None:
+        return idx[mask], mat[mask]
+    return idx[mask]
 
 
 def valid_kmaxpooling(ptr, mask, k=10, parallel_iterations=32):
