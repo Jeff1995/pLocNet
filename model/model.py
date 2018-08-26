@@ -56,7 +56,7 @@ class Model(object):
     def close(self):
         self.sess.close()
 
-    def fit(self, data_dict, val_split=0.1, epoch=100,
+    def fit(self, train_data, val_data=None, val_split=0.1, epoch=100,
             patience=np.inf, **kwargs):
 
         """
@@ -65,13 +65,11 @@ class Model(object):
         and early stop.
         """
 
-        data_dict = utils.DataDict(data_dict)
-
         # Leave out validation set
-        data_dict = data_dict.shuffle()
-        data_size = data_dict.size()
-        train_data_dict = data_dict[int(val_split * data_size):]
-        val_data_dict = data_dict[:int(val_split * data_size)]
+        if val_data is None:
+            train_data = train_data.shuffle()
+            val_data = train_data[:int(val_split * train_data.size())]
+            train_data = train_data[int(val_split * train_data.size()):]
 
         # Fit prep
         loss_record = np.inf
@@ -90,8 +88,8 @@ class Model(object):
 
                 try:
                     t_start = time.time()
-                    self._fit_epoch(train_data_dict.shuffle(), **kwargs)
-                    loss = self._val_epoch(val_data_dict, **kwargs)
+                    self._fit_epoch(train_data.shuffle(), **kwargs)
+                    loss = self._val_epoch(val_data, **kwargs)
                     print("time elapsed = %.1fs" % (
                         time.time() - t_start
                     ), end="")
@@ -137,10 +135,10 @@ class Model(object):
         else:
             print("No checkpoint can be restored...\nTraining failed!")
 
-    def _fit_epoch(self, data_dict, **kwargs):
+    def _fit_epoch(self, data, **kwargs):
         raise NotImplementedError(
             "Calling virtual `_fit_epoch` from `Model`!")
 
-    def _val_epoch(self, data_dict, **kwargs):
+    def _val_epoch(self, data, **kwargs):
         raise NotImplementedError(
             "Calling virtual `_val_epoch` from `Model`!")

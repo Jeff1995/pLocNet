@@ -122,3 +122,11 @@ class DataDict(OrderedDict):
                 (item, self[item][fetch]) for item in self
             ])
         return super(DataDict, self).__getitem__(fetch)
+
+    def __add__(self, another):
+        added = DataDict()
+        for item in self:
+            assert item in another
+            added[item] = np.concatenate(
+                [self[item], another[item]], axis=0)
+        return added

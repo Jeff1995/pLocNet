@@ -60,25 +60,25 @@ class MLPPredictor(model.Model):
             with tf.name_scope("optimize"):
                 self.step = tf.train.AdamOptimizer(lr).minimize(self.loss)
 
-    def _fit_epoch(self, data_dict, batch_size, **kwargs):
+    def _fit_epoch(self, data, batch_size, **kwargs):
         loss = 0
 
         @utils.minibatch(batch_size, desc="training")
-        def _train(data_dict):
+        def _train(data):
             nonlocal loss
             feed_dict = {
-                self.x: data_dict["x"],
-                self.y: data_dict["y"],
+                self.x: data["x"],
+                self.y: data["y"],
                 self.training_flag: True
             }
             _, batch_loss = self.sess.run(
                 [self.step, self.loss],
                 feed_dict=feed_dict
             )
-            loss += batch_loss * data_dict.size()
+            loss += batch_loss * data.size()
 
-        _train(data_dict)
-        loss /= data_dict.size()
+        _train(data)
+        loss /= data.size()
         print("train=%.3f, " % loss, end="")
 
         manual_summary = tf.Summary(value=[
@@ -86,25 +86,25 @@ class MLPPredictor(model.Model):
         ])
         self.summarizer.add_summary(manual_summary, self.sess.run(self.epoch))
 
-    def _val_epoch(self, data_dict, batch_size, **kwargs):
+    def _val_epoch(self, data, batch_size, **kwargs):
         loss = 0
 
         @utils.minibatch(batch_size, desc="validation")
-        def _val(data_dict):
+        def _val(data):
             nonlocal loss
             feed_dict = {
-                self.x: data_dict["x"],
-                self.y: data_dict["y"],
+                self.x: data["x"],
+                self.y: data["y"],
                 self.training_flag: False
             }
             batch_loss = self.sess.run(
                 self.loss,
                 feed_dict=feed_dict
             )
-            loss += batch_loss * data_dict.size()
+            loss += batch_loss * data.size()
 
-        _val(data_dict)
-        loss /= data_dict.size()
+        _val(data)
+        loss /= data.size()
         print("val=%.3f, " % loss, end="")
 
         manual_summary = tf.Summary(value=[
@@ -113,19 +113,19 @@ class MLPPredictor(model.Model):
         self.summarizer.add_summary(manual_summary, self.sess.run(self.epoch))
         return loss
 
-    def fetch(self, tensor, data_dict, batch_size=128):
+    def fetch(self, tensor, data, batch_size=128):
         tensor_shape = tuple(
             item for item in tensor.get_shape().as_list() if item is not None)
-        result = np.empty((data_dict.size(),) + tuple(tensor_shape))
+        result = np.empty((data.size(),) + tuple(tensor_shape))
 
         @utils.minibatch(batch_size, desc="fetch", use_last=True)
-        def _fetch(data_dict, result):
+        def _fetch(data, result):
             feed_dict = {
-                self.x: data_dict["x"],
+                self.x: data["x"],
                 self.training_flag: False
             }
             result[:] = self.sess.run(tensor, feed_dict=feed_dict)
-        _fetch(data_dict, result)
+        _fetch(data, result)
         return result
 
     def __getitem__(self, key):
@@ -133,5 +133,5 @@ class MLPPredictor(model.Model):
             return self.__dict__[key]
         return self.sess.graph.get_tensor_by_name(key + ":0")
 
-    def predict(self, data_dict, batch_size=128):
-        return self.fetch(self.pred, data_dict, batch_size)
+    def predict(self, data, batch_size=128):
+        return self.fetch(self.pred, data, batch_size)

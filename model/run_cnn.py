@@ -15,6 +15,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-x", dest="x", type=str, required=True)
     parser.add_argument("-y", dest="y", type=str, required=True)
+    parser.add_argument("--split", dest="split", type=str, required=True)
     parser.add_argument("-o", "--output-path", dest="output_path",
                         type=str, required=True)
     parser.add_argument("-s", "--seed", dest="seed", type=int, default=None)
@@ -24,28 +25,42 @@ def parse_args():
     return parser.parse_args()
 
 
-def read_data(x, y):
+def read_data(x, y, split):
+    with h5py.File(split, "r") as f:
+        train_idx = utils.decode(f["train"][...])
+        val_idx = utils.decode(f["val"][...])
+        test_idx = utils.decode(f["test"][...])
+
     with h5py.File(x, "r") as f:
-        seq_idx, seq = utils.unique(
-            utils.decode(f["protein_id"].value),
-            f["mat"].value
-        )
-        seq_map = {seq_idx[i]: i for i in range(len(seq_idx))}
+        idx = utils.decode(f["protein_id"][...])
+        idx_dict = {idx[i]: i for i in range(len(idx))}
+
+        @np.vectorize
+        def _idx_map(item):
+            return idx_dict[item]
+
+        x_train = f["mat"][...][_idx_map(train_idx)]
+        x_val = f["mat"][...][_idx_map(val_idx)]
+        x_test = f["mat"][...][_idx_map(test_idx)]
+
     with h5py.File(y, "r") as f:
-        loc_idx, loc = utils.unique(
-            utils.decode(f["protein_id"].value),
-            f["mat"].value
-        )
-        loc_map = {loc_idx[i]: i for i in range(len(loc_idx))}
-    common_names = np.intersect1d(seq_idx, loc_idx)
+        idx = utils.decode(f["protein_id"][...])
+        idx_dict = {idx[i]: i for i in range(len(idx))}
+
+        @np.vectorize
+        def _idx_map(item):
+            return idx_dict[item]
+
+        y_train = f["mat"][:, 0:1][_idx_map(train_idx)]
+        y_val = f["mat"][:, 0:1][_idx_map(val_idx)]
+        y_test = f["mat"][:, 0:1][_idx_map(test_idx)]
+
     return utils.DataDict([
-        ("x", seq[np.vectorize(
-            lambda x, seq_map=seq_map: seq_map[x]
-        )(common_names)]),
-        ("y", loc[np.vectorize(
-            lambda x, loc_map=loc_map: loc_map[x]
-        )(common_names)]),
-        ("protein_id", common_names)
+        ("x", x_train), ("y", y_train), ("protein_id", train_idx)
+    ]), utils.DataDict([
+        ("x", x_val), ("y", y_val), ("protein_id", val_idx)
+    ]), utils.DataDict([
+        ("x", x_test), ("y", y_test), ("protein_id", test_idx)
     ])
 
 
@@ -58,41 +73,39 @@ def main():
         tf.set_random_seed(cmd_args.seed)
 
     print("Reading data...")
-    data_dict = read_data(cmd_args.x, cmd_args.y)
-    data_dict = data_dict.shuffle()
-    train_size = np.floor(float(data_dict.size()) * 0.8).astype(int)
-    train_data_dict = data_dict[:train_size]
-    test_data_dict = data_dict[train_size:]
+    train_data, val_data, test_data = read_data(
+        cmd_args.x, cmd_args.y, cmd_args.split)
+    train_val_data = train_data + val_data
 
     print("Building model...")
-    train_size = train_data_dict.size()
     model = CNNPredictor(
         path=cmd_args.output_path,
-        input_len=train_data_dict["x"].shape[1],
-        input_channel=train_data_dict["x"].shape[2],
+        input_len=train_val_data["x"].shape[1],
+        input_channel=train_val_data["x"].shape[2],
         kernel_num=500, kernel_len=10, fc_depth=2, fc_dim=500,
-        class_num=data_dict["y"].shape[1],
+        class_num=train_val_data["y"].shape[1],
         class_weights=[(
-            0.5 * train_size / (train_size - train_data_dict["y"][:, i].sum()),
-            0.5 * train_size / train_data_dict["y"][:, i].sum()
-        ) for i in range(train_data_dict["y"].shape[1])]
+            0.5 * train_val_data.size() / (
+                train_val_data.size() - train_val_data["y"][:, i].sum()),
+            0.5 * train_val_data.size() / train_val_data["y"][:, i].sum()
+        ) for i in range(train_val_data["y"].shape[1])]
     )
-    model.compile(lr=1e-4)
+    model.compile(lr=1e-3)
     if os.path.exists(os.path.join(cmd_args.output_path, "final")):
         print("Loading existing weights...")
         model.load(os.path.join(cmd_args.output_path, "final"))
 
     if not cmd_args.no_fit:
         print("Fitting model...")
-        model.fit(train_data_dict, val_split=0.1, batch_size=128,
+        model.fit(train_data, val_data, batch_size=128,
                   epoch=1000, patience=10)
         model.save(os.path.join(cmd_args.output_path, "final"))
 
     print("Evaluating result...")
     print("#### Training set ####")
-    utils.evaluate(model, train_data_dict, cutoff=0)
+    utils.evaluate(model, train_val_data, cutoff=0)
     print("#### Testing set ####")
-    utils.evaluate(model, test_data_dict, cutoff=0)
+    utils.evaluate(model, test_data, cutoff=0)
 
 
 if __name__ == "__main__":
