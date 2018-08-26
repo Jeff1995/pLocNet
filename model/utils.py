@@ -3,7 +3,7 @@ from collections import OrderedDict
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, roc_curve
 
 
 encode = np.vectorize(lambda x: str(x).encode("utf-8"))
@@ -63,14 +63,35 @@ def valid_kmaxpooling(ptr, mask, k=10, parallel_iterations=32):
     )
 
 
-def evaluate(model, data_dict):
+def evaluate(model, data_dict, cutoff=None):
+
     true = data_dict["y"]
     pred = model.predict(data_dict)
-    auc = np.vectorize(
-        lambda i, true=true, pred=pred: roc_auc_score(true[:, i], pred[:, i])
-    )(np.arange(true.shape[1]))
+
+    @np.vectorize
+    def _auc(i):
+        return roc_auc_score(true[:, i], pred[:, i])
+
+    @np.vectorize
+    def _cutoff(i):
+        fpr, tpr, thresholds = roc_curve(true[:, i], pred[:, i])
+        return thresholds[(tpr - fpr).argmax()]
+
+    auc = _auc(np.arange(true.shape[1]))
     print("AUC: ", end="")
     print(auc)
+    if cutoff is None:
+        cutoff = _cutoff(np.arange(true.shape[1]))
+    pred = pred > cutoff
+    accuracy = (pred == true).sum(axis=0) / pred.shape[0]
+    print("Accuracy: ", end="")
+    print(accuracy)
+    precision = np.logical_and(pred, true).sum(axis=0) / pred.sum(axis=0)
+    print("Precision: ", end="")
+    print(precision)
+    recall = np.logical_and(pred, true).sum(axis=0) / true.sum(axis=0)
+    print("Recall: ", end="")
+    print(recall)
 
 
 class DataDict(OrderedDict):

@@ -90,9 +90,9 @@ def main():
 
     print("Evaluating result...")
     print("#### Training set ####")
-    utils.evaluate(model, train_data_dict)
+    utils.evaluate(model, train_data_dict, cutoff=0)
     print("#### Testing set ####")
-    utils.evaluate(model, test_data_dict)
+    utils.evaluate(model, test_data_dict, cutoff=0)
 
 
 if __name__ == "__main__":
