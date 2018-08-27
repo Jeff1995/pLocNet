@@ -66,10 +66,22 @@ def valid_kmaxpooling(ptr, mask, k=10, parallel_iterations=32):
     )
 
 
-def evaluate(model, data_dict, cutoff=None):
+def graph_conv(input, graph, units, activation=None,
+               use_bias=True, name="graph_conv"):
+    with tf.variable_scope(name):
+        kernel = tf.get_variable("kernel", shape=(
+            input.get_shape().as_list()[1], units
+        ), dtype=tf.float32)
+        if use_bias:
+            bias = tf.get_variable(
+                "bias", shape=(units, ), dtype=tf.float32)
+    ptr = tf.sparse_tensor_dense_matmul(
+        graph, tf.matmul(input, kernel)
+    ) + bias
+    return activation(ptr) if activation is not None else ptr
 
-    true = data_dict["y"]
-    pred = model.predict(data_dict)
+
+def evaluate(true, pred, cutoff=None):
 
     @np.vectorize
     def _auc(i):

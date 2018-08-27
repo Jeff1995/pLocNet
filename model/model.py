@@ -77,7 +77,7 @@ class Model(object):
         saver = tf.train.Saver(max_to_keep=1)
         with tf.variable_scope("epoch", reuse=tf.AUTO_REUSE):
             self.epoch = tf.get_variable(
-                "epoch", shape=(), dtype=tf.float32, trainable=False)
+                "epoch", shape=(), dtype=tf.int32, trainable=False)
         ckpt_file = os.path.join(self.path, "checkpoint")
 
         # Fit loop

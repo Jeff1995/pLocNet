@@ -101,9 +101,13 @@ def main():
 
     print("Evaluating result...")
     print("#### Training set ####")
-    utils.evaluate(model, train_val_data, cutoff=0)
+    utils.evaluate(train_val_data["y"],
+                   model.predict(train_val_data),
+                   cutoff=0)
     print("#### Testing set ####")
-    utils.evaluate(model, test_data, cutoff=0)
+    utils.evaluate(test_data["y"],
+                   model.predict(test_data),
+                   cutoff=0)
 
 
 if __name__ == "__main__":
