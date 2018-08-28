@@ -57,6 +57,24 @@ def read_data(x, y, split):
     ])
 
 
+def evaluate(model, train_data, test_data, output_path):
+
+    print("#### Training set ####")
+    train_pred = model.predict(train_data)
+    utils.evaluate(train_data["y"], train_pred, cutoff=0)
+    print("#### Testing set ####")
+    test_pred = model.predict(test_data)
+    utils.evaluate(test_data["y"], test_pred, cutoff=0)
+
+    with h5py.File(os.path.join(output_path, "result.h5"), "w") as f:
+        g = f.create_group("train")
+        g.create_dataset("true", data=train_data["y"])
+        g.create_dataset("pred", data=train_pred)
+        g = f.create_group("test")
+        g.create_dataset("true", data=test_data["y"])
+        g.create_dataset("pred", data=test_pred)
+
+
 def main():
     cmd_args = parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = cmd_args.device
@@ -73,7 +91,7 @@ def main():
     print("Building model...")
     model = MLPPredictor(
         path=cmd_args.output_path,
-        input_dim=train_val_data["x"].shape[1], fc_depth=1, fc_dim=100,
+        input_dim=train_val_data["x"].shape[1], fc_depth=2, fc_dim=500,
         class_num=train_val_data["y"].shape[1],
         class_weights=[(
             0.5 * train_val_data.size() / (
@@ -93,14 +111,7 @@ def main():
         model.save(os.path.join(cmd_args.output_path, "final"))
 
     print("Evaluating result...")
-    print("#### Training set ####")
-    utils.evaluate(train_val_data["y"],
-                   model.predict(train_val_data),
-                   cutoff=0)
-    print("#### Testing set ####")
-    utils.evaluate(test_data["y"],
-                   model.predict(test_data),
-                   cutoff=0)
+    evaluate(model, train_val_data, test_data, cmd_args.output_path)
 
 
 if __name__ == "__main__":
