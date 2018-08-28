@@ -7,13 +7,13 @@ import numpy as np
 import tensorflow as tf
 import h5py
 import utils
-from gcn import GCNPredictor
+from gcn import ConvGCNPredictor
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-x", dest="x", type=str, default=None)
+    parser.add_argument("-x", dest="x", type=str, required=True)
     parser.add_argument("-y", dest="y", type=str, required=True)
     parser.add_argument("-g", dest="g", type=str, required=True)
     parser.add_argument("--split", dest="split", type=str, required=True)
@@ -27,30 +27,27 @@ def parse_args():
 
 
 def read_data(x, y, g, split):
-    with h5py.File(g, "r") as g_file:
-        g_idx, g = utils.decode(g_file["protein_id"][...]), \
-            g_file["mat_bool"][...]  # Confident that g is unique
-    if x is not None:
-        with h5py.File(x, "r") as x_file:
-            x_idx, x = utils.unique(
-                utils.decode(x_file["protein_id"][...]),
-                x_file["mat"])
-    else:
-        x_idx, x = g_idx, np.eye(g.shape[0])
-    with h5py.File(y, "r") as y_file:
+    with h5py.File(x, "r") as x_file, \
+         h5py.File(y, "r") as y_file, \
+         h5py.File(g, "r") as g_file:
+        x_idx, x = utils.unique(
+            utils.decode(x_file["protein_id"][...]),
+            x_file["mat"])
         y_idx, y = utils.unique(
             utils.decode(y_file["protein_id"][...]),
             y_file["mat"])
-    xg_idx = np.intersect1d(x_idx, g_idx)
+        g_idx, g = utils.decode(g_file["protein_id"][...]), \
+            g_file["mat_bool"][...]  # Confident that g is unique
+        xg_idx = np.intersect1d(x_idx, g_idx)
 
-    x = x[utils.get_idx_mapper(x_idx)(xg_idx)]
-    g_extract = utils.get_idx_mapper(g_idx)(xg_idx)
-    g = g[g_extract[:, None], g_extract]
-    y = y[:, 0:1]
-    y = np.concatenate([y, np.zeros(
-        (1,) + y.shape[1:], dtype=y.dtype.type
-    )], axis=0)  # Fill zeros if not existing
-    y = y[utils.get_idx_mapper(y_idx)(xg_idx)]
+        x = x[utils.get_idx_mapper(x_idx)(xg_idx)]
+        g_extract = utils.get_idx_mapper(g_idx)(xg_idx)
+        g = g[g_extract[:, None], g_extract]
+        y = y[:, 0:1]
+        y = np.concatenate([y, np.zeros(
+            (1,) + y.shape[1:], dtype=y.dtype.type
+        )], axis=0)  # Fill zeros if not existing
+        y = y[utils.get_idx_mapper(y_idx)(xg_idx)]
 
     with h5py.File(split, "r") as f:
         train_idx = utils.decode(f["train"][...])
@@ -84,10 +81,13 @@ def main():
 
     print("Building model...")
     train_val_mask = np.logical_or(train_mask, val_mask)
-    model = GCNPredictor(
+    model = ConvGCNPredictor(
         path=cmd_args.output_path,
-        input_dim=data["x"].shape[1], graph=graph,
-        gc_depth=2, gc_dim=500,
+        input_len=data["x"].shape[1],
+        input_channel=data["x"].shape[2],
+        graph=graph,
+        kernel_num=500, kernel_len=10, pool_size=10,
+        gc_depth=1, gc_dim=500,
         class_num=data["y"].shape[1],
         class_weights=[(
             0.5 * train_val_mask.sum() / (

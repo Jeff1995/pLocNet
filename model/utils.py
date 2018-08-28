@@ -33,15 +33,26 @@ def minibatch(batch_size, desc, use_last=False):
     return minibatch_wrapper
 
 
-def unique(idx, mat=None):  # Only idx with single occurrence will be retained
-    if mat is not None:
-        assert len(idx) == mat.shape[0]
+def unique(idx, *args):  # Only idx with single occurrence will be retained
     unique_idx, count = np.unique(idx, return_counts=True)
     unique_idx = unique_idx[count == 1]
     mask = np.in1d(idx, unique_idx)
-    if mat is not None:
-        return idx[mask], mat[mask]
-    return idx[mask]
+    result = [idx[mask]]
+    for item in args:
+        result.append(item[mask, ...])
+    return result
+
+
+def get_idx_mapper(idx):
+    idx_dict = {idx[i]: i for i in range(len(idx))}
+
+    @np.vectorize
+    def _idx_map(item):
+        if item in idx_dict:
+            return idx_dict[item]
+        return -1
+
+    return _idx_map
 
 
 def valid_kmaxpooling(ptr, mask, k=10, parallel_iterations=32):
@@ -75,10 +86,12 @@ def graph_conv(input, graph, units, activation=None,
         if use_bias:
             bias = tf.get_variable(
                 "bias", shape=(units, ), dtype=tf.float32)
-    ptr = tf.sparse_tensor_dense_matmul(
-        graph, tf.matmul(input, kernel)
-    ) + bias
-    return activation(ptr) if activation is not None else ptr
+        ptr = tf.sparse_tensor_dense_matmul(
+            graph, tf.matmul(input, kernel)
+        ) + bias
+        if activation is not None:
+            ptr = activation(ptr)
+    return ptr
 
 
 def evaluate(true, pred, cutoff=None):

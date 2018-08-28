@@ -12,7 +12,8 @@ import utils
 class GCNPredictor(model.Model):
 
     def _init_graph(
-        self, input_dim, graph, gc_depth=1, gc_dim=100,
+        self, input_dim, graph,
+        gc_depth=1, gc_dim=100,
         class_num=1, class_weights=None,
         dropout_rate=0.5, **kwargs
     ):
@@ -20,18 +21,17 @@ class GCNPredictor(model.Model):
         assert np.all(graph == graph.T)
 
         # Normalize graph matirx
-        graph = graph.astype(np.float32)
-        graph += np.eye(graph.shape[0], dtype=np.float32)
-        normalizer = np.power(graph.sum(axis=0, keepdims=True), -1 / 2)
-        graph *= normalizer
-        graph *= normalizer.T
         graph = sp.coo_matrix(graph).astype(np.float32)
-
+        graph += sp.eye(graph.shape[0], dtype=np.float32, format="coo")
+        normalizer = np.power(graph.sum(axis=0), -1 / 2)
+        graph = graph.multiply(normalizer)
+        graph = graph.multiply(normalizer.T)
         self.graph = tf.SparseTensor(
             indices=np.stack([graph.row, graph.col], axis=0).T,
             values=graph.data,
             dense_shape=graph.shape
         )
+
         with tf.name_scope("placeholder"):
             ptr = self.x = tf.placeholder(
                 dtype=tf.float32, shape=(graph.shape[0], input_dim),
@@ -191,3 +191,83 @@ class GCNPredictor(model.Model):
 
     def predict(self, data, mask):
         return self.fetch(self.pred, data, mask)
+
+
+class ConvGCNPredictor(GCNPredictor):
+
+    def _init_graph(
+        self, input_len, input_channel, graph,
+        kernel_num=100, kernel_len=3, pool_size=10,
+        gc_depth=1, gc_dim=100,
+        class_num=1, class_weights=None,
+        dropout_rate=0.5, **kwargs
+    ):
+        assert class_weights is None or len(class_weights) == class_num
+        assert np.all(graph == graph.T)
+
+        # Normalize graph matirx
+        graph = sp.coo_matrix(graph).astype(np.float32)
+        graph += sp.eye(graph.shape[0], dtype=np.float32, format="coo")
+        normalizer = np.power(graph.sum(axis=0), -1 / 2)
+        graph = graph.multiply(normalizer)
+        graph = graph.multiply(normalizer.T)
+        self.graph = tf.SparseTensor(
+            indices=np.stack([graph.row, graph.col], axis=0).T,
+            values=graph.data,
+            dense_shape=graph.shape
+        )
+
+        with tf.name_scope("placeholder"):
+            ptr = self.x = tf.placeholder(
+                dtype=tf.float32,
+                shape=(graph.shape[0], input_len, input_channel),
+                name="input"
+            )
+            self.y = tf.placeholder(
+                dtype=tf.float32, shape=(graph.shape[0], class_num),
+                name="label"
+            )
+            self.mask = tf.placeholder(
+                dtype=tf.bool, shape=(graph.shape[0]), name="mask"
+            )
+            self.training_flag = tf.placeholder(
+                dtype=tf.bool, shape=(), name="training_flag"
+            )
+
+        with tf.variable_scope("conv"):
+            ptr = tf.nn.relu(tf.layers.conv1d(
+                self.x, filters=kernel_num, kernel_size=kernel_len,
+                padding="valid", use_bias=False, name="conv1d"
+            ))
+
+        with tf.name_scope("pool"):  # Global valid pooling
+            seq_len = tf.reduce_sum(self.x, axis=(1, 2), name="seq_len")
+            valid_mask = tf.sequence_mask(
+                lengths=seq_len - (kernel_len - 1),
+                maxlen=input_len - (kernel_len - 1)
+            )
+            ptr = self.conv = utils.valid_kmaxpooling(
+                ptr, valid_mask, k=pool_size)
+
+        with tf.variable_scope("gc"):
+            for l in range(gc_depth):
+                ptr = utils.graph_conv(
+                    ptr, graph=self.graph, units=gc_dim,
+                    activation=tf.nn.leaky_relu, name="layer_%d" % l
+                )
+                ptr = tf.layers.dropout(
+                    ptr, rate=dropout_rate, training=self.training_flag
+                )
+            self.pred = tf.boolean_mask(utils.graph_conv(
+                ptr, graph=self.graph, units=class_num
+            ), self.mask)
+
+        with tf.name_scope("loss"):
+            self.loss, masked_y = 0, tf.boolean_mask(self.y, self.mask)
+            for i in range(class_num):
+                loss = tf.nn.sigmoid_cross_entropy_with_logits(
+                    labels=masked_y[:, i], logits=self.pred[:, i])
+                weight = masked_y[:, i] * (
+                    class_weights[i][1] - class_weights[i][0]
+                ) + class_weights[i][0] if class_weights is not None else 1
+                self.loss += tf.reduce_mean(weight * loss)

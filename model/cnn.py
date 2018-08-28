@@ -27,7 +27,7 @@ class CNNPredictor(model.Model):
             self.training_flag = tf.placeholder(
                 dtype=tf.bool, shape=(), name="training_flag")
 
-        with tf.variable_scope("conv", reuse=tf.AUTO_REUSE):
+        with tf.variable_scope("conv"):
             ptr = tf.nn.relu(tf.layers.conv1d(
                 self.x, filters=kernel_num, kernel_size=kernel_len,
                 padding="valid", use_bias=False, name="conv1d"

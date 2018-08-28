@@ -30,30 +30,23 @@ def read_data(x, y, split):
         train_idx = utils.decode(f["train"][...])
         val_idx = utils.decode(f["val"][...])
         test_idx = utils.decode(f["test"][...])
+        all_idx = np.concatenate([train_idx, val_idx, test_idx], axis=0)
 
     with h5py.File(x, "r") as f:
-        idx = utils.decode(f["protein_id"][...])
-        idx_dict = {idx[i]: i for i in range(len(idx))}
-
-        @np.vectorize
-        def _idx_map(item):
-            return idx_dict[item]
-
-        x_train = f["protein_vec"][...][_idx_map(train_idx)]
-        x_val = f["protein_vec"][...][_idx_map(val_idx)]
-        x_test = f["protein_vec"][...][_idx_map(test_idx)]
+        idx, mat = utils.unique(utils.decode(f["protein_id"][...]), f["mat"])
+        assert np.all(np.in1d(all_idx, idx))
+        idx_mapper = utils.get_idx_mapper(idx)
+        x_train = mat[idx_mapper(train_idx)]
+        x_val = mat[idx_mapper(val_idx)]
+        x_test = mat[idx_mapper(test_idx)]
 
     with h5py.File(y, "r") as f:
-        idx = utils.decode(f["protein_id"][...])
-        idx_dict = {idx[i]: i for i in range(len(idx))}
-
-        @np.vectorize
-        def _idx_map(item):
-            return idx_dict[item]
-
-        y_train = f["mat"][:, 0:1][_idx_map(train_idx)]
-        y_val = f["mat"][:, 0:1][_idx_map(val_idx)]
-        y_test = f["mat"][:, 0:1][_idx_map(test_idx)]
+        idx, mat = utils.unique(utils.decode(f["protein_id"][...]), f["mat"])
+        assert np.all(np.in1d(all_idx, idx))
+        idx_mapper = utils.get_idx_mapper(idx)
+        y_train = mat[idx_mapper(train_idx)]
+        y_val = mat[idx_mapper(val_idx)]
+        y_test = mat[idx_mapper(test_idx)]
 
     return utils.DataDict([
         ("x", x_train), ("y", y_train), ("protein_id", train_idx)

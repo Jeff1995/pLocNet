@@ -31,7 +31,7 @@ def read_data(file_name):
     with h5py.File(file_name, "r") as f:
         data_dict = utils.DataDict()
         data_dict["sequence"] = f["mat"][:, 1:, :]  # Drop first 'M'
-        data_dict["protein_id"] = f["protein_id"].value
+        data_dict["protein_id"] = f["protein_id"][...]
     return data_dict
 
 
@@ -80,7 +80,7 @@ def main():
     print("Saving result...")
     protein_vec = model.inference(data_dict)
     with h5py.File(os.path.join(cmd_args.output_path, "result.h5"), "w") as f:
-        f.create_dataset("protein_vec", data=protein_vec)
+        f.create_dataset("mat", data=protein_vec)
         f.create_dataset("protein_id", data=data_dict["protein_id"])
 
 

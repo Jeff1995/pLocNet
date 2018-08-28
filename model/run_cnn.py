@@ -22,6 +22,8 @@ def parse_args():
     parser.add_argument("-d", "--device", dest="device", type=str, default="")
     parser.add_argument("-n", "--no-fit", dest="no_fit",
                         default=False, action="store_true")
+    parser.add_argument("--save-hidden", dest="save_hidden",
+                        default=False, action="store_true")
     return parser.parse_args()
 
 
@@ -30,30 +32,24 @@ def read_data(x, y, split):
         train_idx = utils.decode(f["train"][...])
         val_idx = utils.decode(f["val"][...])
         test_idx = utils.decode(f["test"][...])
+        all_idx = np.concatenate([train_idx, val_idx, test_idx], axis=0)
 
     with h5py.File(x, "r") as f:
-        idx = utils.decode(f["protein_id"][...])
-        idx_dict = {idx[i]: i for i in range(len(idx))}
-
-        @np.vectorize
-        def _idx_map(item):
-            return idx_dict[item]
-
-        x_train = f["mat"][...][_idx_map(train_idx)]
-        x_val = f["mat"][...][_idx_map(val_idx)]
-        x_test = f["mat"][...][_idx_map(test_idx)]
+        idx, mat = utils.unique(utils.decode(f["protein_id"][...]), f["mat"])
+        assert np.all(np.in1d(all_idx, idx))
+        idx_mapper = utils.get_idx_mapper(idx)
+        x_train = mat[idx_mapper(train_idx)]
+        x_val = mat[idx_mapper(val_idx)]
+        x_test = mat[idx_mapper(test_idx)]
 
     with h5py.File(y, "r") as f:
-        idx = utils.decode(f["protein_id"][...])
-        idx_dict = {idx[i]: i for i in range(len(idx))}
-
-        @np.vectorize
-        def _idx_map(item):
-            return idx_dict[item]
-
-        y_train = f["mat"][:, 0:1][_idx_map(train_idx)]
-        y_val = f["mat"][:, 0:1][_idx_map(val_idx)]
-        y_test = f["mat"][:, 0:1][_idx_map(test_idx)]
+        idx, mat = utils.unique(utils.decode(f["protein_id"][...]), f["mat"])
+        mat = mat[:, 0:1]
+        assert np.all(np.in1d(all_idx, idx))
+        idx_mapper = utils.get_idx_mapper(idx)
+        y_train = mat[idx_mapper(train_idx)]
+        y_val = mat[idx_mapper(val_idx)]
+        y_test = mat[idx_mapper(test_idx)]
 
     return utils.DataDict([
         ("x", x_train), ("y", y_train), ("protein_id", train_idx)
@@ -90,7 +86,7 @@ def main():
             0.5 * train_val_data.size() / train_val_data["y"][:, i].sum()
         ) for i in range(train_val_data["y"].shape[1])]
     )
-    model.compile(lr=1e-3)
+    model.compile(lr=1e-4)
     if os.path.exists(os.path.join(cmd_args.output_path, "final")):
         print("Loading existing weights...")
         model.load(os.path.join(cmd_args.output_path, "final"))
@@ -110,6 +106,16 @@ def main():
     utils.evaluate(test_data["y"],
                    model.predict(test_data),
                    cutoff=0)
+
+    if cmd_args.save_hidden:
+        all_data = train_val_data + test_data
+        hidden = model.fetch(model.conv, all_data)
+        with h5py.File(os.path.join(
+            cmd_args.output_path, "hidden.h5"
+        ), "w") as f:
+            f.create_dataset("mat", data=hidden)
+            f.create_dataset(
+                "protein_id", data=utils.encode(all_data["protein_id"]))
 
 
 if __name__ == "__main__":
