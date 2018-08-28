@@ -8,63 +8,8 @@ import tensorflow as tf
 import h5py
 import utils
 from gcn import ConvGCNPredictor
+from run_gcn import parse_args, read_data, evaluate
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-x", dest="x", type=str, required=True)
-    parser.add_argument("-y", dest="y", type=str, required=True)
-    parser.add_argument("-g", dest="g", type=str, required=True)
-    parser.add_argument("--split", dest="split", type=str, required=True)
-    parser.add_argument("-o", "--output-path", dest="output_path",
-                        type=str, required=True)
-    parser.add_argument("-s", "--seed", dest="seed", type=int, default=None)
-    parser.add_argument("-d", "--device", dest="device", type=str, default="")
-    parser.add_argument("-n", "--no-fit", dest="no_fit",
-                        default=False, action="store_true")
-    return parser.parse_args()
-
-
-def read_data(x, y, g, split):
-    with h5py.File(x, "r") as x_file, \
-         h5py.File(y, "r") as y_file, \
-         h5py.File(g, "r") as g_file:
-        x_idx, x = utils.unique(
-            utils.decode(x_file["protein_id"][...]),
-            x_file["mat"])
-        y_idx, y = utils.unique(
-            utils.decode(y_file["protein_id"][...]),
-            y_file["mat"])
-        g_idx, g = utils.decode(g_file["protein_id"][...]), \
-            g_file["mat_bool"][...]  # Confident that g is unique
-        xg_idx = np.intersect1d(x_idx, g_idx)
-
-        x = x[utils.get_idx_mapper(x_idx)(xg_idx)]
-        g_extract = utils.get_idx_mapper(g_idx)(xg_idx)
-        g = g[g_extract[:, None], g_extract]
-        y = y[:, 0:1]
-        y = np.concatenate([y, np.zeros(
-            (1,) + y.shape[1:], dtype=y.dtype.type
-        )], axis=0)  # Fill zeros if not existing
-        y = y[utils.get_idx_mapper(y_idx)(xg_idx)]
-
-    with h5py.File(split, "r") as f:
-        train_idx = utils.decode(f["train"][...])
-        val_idx = utils.decode(f["val"][...])
-        test_idx = utils.decode(f["test"][...])
-        xyg_idx = np.intersect1d(xg_idx, y_idx)
-        assert np.all(np.in1d(train_idx, xyg_idx)) \
-            and np.all(np.in1d(val_idx, xyg_idx)) \
-            and np.all(np.in1d(test_idx, xyg_idx))
-        train_mask = np.in1d(xg_idx, train_idx)
-        val_mask = np.in1d(xg_idx, val_idx)
-        test_mask = np.in1d(xg_idx, test_idx)
-
-    return utils.DataDict([
-        ("x", x), ("y", y),
-        ("protein_id", xg_idx),
-    ]), g, train_mask, val_mask, test_mask
 
 
 def main():
@@ -107,14 +52,7 @@ def main():
         model.save(os.path.join(cmd_args.output_path, "final"))
 
     print("Evaluating result...")
-    print("#### Training set ####")
-    utils.evaluate(data["y"][train_val_mask],
-                   model.predict(data, train_val_mask),
-                   cutoff=0)
-    print("#### Testing set ####")
-    utils.evaluate(data["y"][test_mask],
-                   model.predict(data, test_mask),
-                   cutoff=0)
+    evaluate(model, data, train_val_mask, test_mask, cmd_args.output_path)
 
 
 if __name__ == "__main__":

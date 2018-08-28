@@ -50,6 +50,7 @@ class CNNPredictor(model.Model):
                 )
                 ptr = tf.layers.dropout(
                     ptr, rate=dropout_rate, training=self.training_flag)
+            self.prepred = ptr
             self.pred = tf.layers.dense(ptr, units=class_num)
 
         with tf.name_scope("loss"):

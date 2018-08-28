@@ -8,6 +8,7 @@ import tensorflow as tf
 import h5py
 import utils
 from cnn import CNNPredictor
+from run_mlp import read_data, evaluate
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 
@@ -25,39 +26,6 @@ def parse_args():
     parser.add_argument("--save-hidden", dest="save_hidden",
                         default=False, action="store_true")
     return parser.parse_args()
-
-
-def read_data(x, y, split):
-    with h5py.File(split, "r") as f:
-        train_idx = utils.decode(f["train"][...])
-        val_idx = utils.decode(f["val"][...])
-        test_idx = utils.decode(f["test"][...])
-        all_idx = np.concatenate([train_idx, val_idx, test_idx], axis=0)
-
-    with h5py.File(x, "r") as f:
-        idx, mat = utils.unique(utils.decode(f["protein_id"][...]), f["mat"])
-        assert np.all(np.in1d(all_idx, idx))
-        idx_mapper = utils.get_idx_mapper(idx)
-        x_train = mat[idx_mapper(train_idx)]
-        x_val = mat[idx_mapper(val_idx)]
-        x_test = mat[idx_mapper(test_idx)]
-
-    with h5py.File(y, "r") as f:
-        idx, mat = utils.unique(utils.decode(f["protein_id"][...]), f["mat"])
-        mat = mat[:, 0:1]
-        assert np.all(np.in1d(all_idx, idx))
-        idx_mapper = utils.get_idx_mapper(idx)
-        y_train = mat[idx_mapper(train_idx)]
-        y_val = mat[idx_mapper(val_idx)]
-        y_test = mat[idx_mapper(test_idx)]
-
-    return utils.DataDict([
-        ("x", x_train), ("y", y_train), ("protein_id", train_idx)
-    ]), utils.DataDict([
-        ("x", x_val), ("y", y_val), ("protein_id", val_idx)
-    ]), utils.DataDict([
-        ("x", x_test), ("y", y_test), ("protein_id", test_idx)
-    ])
 
 
 def main():
@@ -78,7 +46,7 @@ def main():
         path=cmd_args.output_path,
         input_len=train_val_data["x"].shape[1],
         input_channel=train_val_data["x"].shape[2],
-        kernel_num=500, kernel_len=10, fc_depth=2, fc_dim=500,
+        kernel_num=500, kernel_len=5, fc_depth=1, fc_dim=100,
         class_num=train_val_data["y"].shape[1],
         class_weights=[(
             0.5 * train_val_data.size() / (
@@ -98,18 +66,10 @@ def main():
         model.save(os.path.join(cmd_args.output_path, "final"))
 
     print("Evaluating result...")
-    print("#### Training set ####")
-    utils.evaluate(train_val_data["y"],
-                   model.predict(train_val_data),
-                   cutoff=0)
-    print("#### Testing set ####")
-    utils.evaluate(test_data["y"],
-                   model.predict(test_data),
-                   cutoff=0)
-
+    evaluate(model, train_val_data, test_data, cmd_args.output_path)
     if cmd_args.save_hidden:
         all_data = train_val_data + test_data
-        hidden = model.fetch(model.conv, all_data)
+        hidden = model.fetch(model.prepred, all_data)
         with h5py.File(os.path.join(
             cmd_args.output_path, "hidden.h5"
         ), "w") as f:

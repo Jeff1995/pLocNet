@@ -70,6 +70,24 @@ def read_data(x, y, g, split):
     ]), g, train_mask, val_mask, test_mask
 
 
+def evaluate(model, data, train_mask, test_mask, output_path):
+
+    print("#### Training set ####")
+    train_pred = model.predict(data, train_mask)
+    utils.evaluate(data["y"][train_mask], train_pred, cutoff=0)
+    print("#### Testing set ####")
+    test_pred = model.predict(data, test_mask)
+    utils.evaluate(data["y"][test_mask], test_pred, cutoff=0)
+
+    with h5py.File(os.path.join(output_path, "result.h5"), "w") as f:
+        g = f.create_group("train")
+        g.create_dataset("true", data=data["y"][train_mask])
+        g.create_dataset("pred", data=train_pred)
+        g = f.create_group("test")
+        g.create_dataset("true", data=data["y"][test_mask])
+        g.create_dataset("pred", data=test_pred)
+
+
 def main():
     cmd_args = parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = cmd_args.device
@@ -107,14 +125,7 @@ def main():
         model.save(os.path.join(cmd_args.output_path, "final"))
 
     print("Evaluating result...")
-    print("#### Training set ####")
-    utils.evaluate(data["y"][train_val_mask],
-                   model.predict(data, train_val_mask),
-                   cutoff=0)
-    print("#### Testing set ####")
-    utils.evaluate(data["y"][test_mask],
-                   model.predict(data, test_mask),
-                   cutoff=0)
+    evaluate(model, data, train_val_mask, test_mask, cmd_args.output_path)
 
 
 if __name__ == "__main__":
