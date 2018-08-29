@@ -8,8 +8,8 @@ class CNNPredictor(model.Model):
 
     def _init_graph(
         self, input_len, input_channel,
-        kernel_num=100, kernel_len=3, pool_size=10,
-        fc_depth=1, fc_dim=100,
+        kernel_num=1000, kernel_len=5, pool_size=10,
+        fc_depth=2, fc_dim=1000, final_fc_dim=100,
         class_num=1, class_weights=None,
         dropout_rate=0.5, **kwargs
     ):
@@ -45,12 +45,13 @@ class CNNPredictor(model.Model):
         with tf.variable_scope("fc"):
             for l in range(fc_depth):
                 ptr = tf.layers.dense(
-                    ptr, units=fc_dim, activation=tf.nn.leaky_relu,
+                    ptr, units=fc_dim if l < fc_depth - 1 else final_fc_dim,
+                    activation=tf.nn.leaky_relu,
                     name="layer_%d" % l
                 )
                 ptr = tf.layers.dropout(
                     ptr, rate=dropout_rate, training=self.training_flag)
-            self.prepred = ptr
+            self.final_fc = ptr
             self.pred = tf.layers.dense(ptr, units=class_num)
 
         with tf.name_scope("loss"):

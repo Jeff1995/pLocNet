@@ -8,8 +8,8 @@ class ProteinEmbedding(model.Model):
 
     def _init_graph(
         self, input_len, input_channel,
-        kernel_num=100, kernel_len=3, pool_size=10,
-        fc_depth=1, fc_dim=100, latent_dim=10,
+        kernel_num=1000, kernel_len=5, pool_size=10,
+        fc_depth=1, fc_dim=1000, latent_dim=100,
         noise_distribution=None, dropout_rate=0.5,
         eps=1e-8, **kwargs
     ):
