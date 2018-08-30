@@ -35,16 +35,16 @@
 	\vspace{2em}
 	\textbf{\huge{深度学习算法与应用期末作业报告}}\\
 	\vspace{1em}
-	\large{题目\ \underline{\makebox[20em]{基于图卷积神经网络的蛋白亚细胞定位预测}}}
+	\large{题目\ \underline{\makebox[26em]{基于图卷积神经网络的蛋白亚细胞定位预测}}}
 }
 
-\author{姓名\ \underline{\makebox[12em]{曹智杰，李响，郭宇航}}\\
-	学号\ \underline{\makebox[12em]{1701110560，1701111447，1701110049}}\\
-	学院\ \underline{\makebox[12em]{生命科学学院，前沿交叉学科研究院，数学科学学院}}\\
-	专业\ \underline{\makebox[12em]{生物信息学，整合生命科学，统计学}}
+\author{姓名\ \underline{\makebox[24em]{曹智杰，李响，郭宇航}}\\
+	学号\ \underline{\makebox[24em]{1701110560，1701111447，1701110049}}\\
+	学院\ \underline{\makebox[24em]{生命科学学院，前沿交叉学科研究院，数学科学学院}}\\
+	专业\ \underline{\makebox[24em]{生物信息学，整合生命科学，统计学}}
 }
 
-\date{2018 年 8 月 28 日}
+\date{2018 年 8 月 30 日}
 
 
 \maketitle
@@ -64,7 +64,6 @@
 \newpage{}
 \section{问题背景}
 \subsection{图卷积模型}
-
 许多重要的现实世界数据集以图形或网络的形式出现：如社交网络，知识图谱，蛋白质交互网络，万维网等。 然而，直到最近人们也很少关注神经网络模型对这种结构化数据集的应用。\\
 
 推广完善的神经模型（如RNN或CNN）来处理任意结构化图形是一个具有挑战性的问题。最近的一些论文介绍了特定问题的网络架构（例如Duvenaud等人，NIPS 2015; Li等人，ICLR 2016; Jain等人，CVPR 2016），其他人则利用谱图理论中已知的图形卷积（Bruna et例如，ICLR 2014; Henaff等，2015）定义用于多层神经网络模型的参数化滤波器，类似于我们所熟知和喜爱的“经典”CNN。最近的工作重点是弥合快速启发式的算法和高昂的计算复杂度。 Defferrard等人（NIPS 2016）使用具有自由参数的切比雪夫多项式在谱域中近似平滑滤波器，所述自由参数在类似神经网络的模型中学习。它们在常规域（如MNIST）上取得令人信服的结果，与简单的2D CNN模型非常接近。在Kipf＆Welling（ICLR 2017）中，我们采用了一种类似的方法，从谱图卷积的框架开始，然后引入简化（我们将在后面的文章中介绍），在许多情况下可以兼得显著加快训练时间和更高的预测准确性两者，在许多基准图数据集上达到最先进的分类结果。\\
@@ -227,7 +226,7 @@ $$\mathbb{L} (\beta)=\sum (1-Y_{i})\ln (1-\hat{g}(x_{i}\beta))+\sum Y_{i}\ln (\h
 
 支持向量机（SVM）是一种应用广泛的分类方法，其原理是在高维或无限维空间中构造超平面或超平面集合，使得分类边界距离最近的训练数据点尽可能的远，如下图所示：
 \begin{figure}[H]
-	\centering\includegraphics[scale=0.3]{p1.png}
+	\centering\includegraphics[scale=0.3]{aic-m1.pdf}
 \end{figure}
 \begin{itemize}
 	\item 称训练样本是线性可分的，如果存在决策超平面 $w\cdot x+b=0 $，使得以
@@ -243,7 +242,7 @@ $$\sum_{i=1}^{n}\alpha_{i}y_{i}=0,\quad \alpha_{i} \geq 0,\quad 1\leq i \leq n $
 
 尽管原始问题可能是在有限维空间中陈述的，但用于区分的集合在该空间中往往线性不可分。为此，有人提出将原有限维空间映射到维数高得多的空间中，在该空间中进行分离可能会更容易，这就是Kernel-SVM算法。下图用一个简单的例子生动形象的描述了这一算法的思想：
 \begin{figure}[H]
-	\centering\includegraphics[scale=0.2]{p2.png}
+	\centering\includegraphics[scale=0.2]{aic-m2.pdf}
 \end{figure}
 
 线性SVM的算法求解依赖向量之间的内积$x_{i}^{T}x_{j}$, 而Kernel-SVM的算法是用一个映射$\phi:x\rightarrow\phi(x)$ 把数据映射到高维空间，之后用核函数的形式替代两个向量的内积，即
@@ -262,18 +261,19 @@ $$\min \frac{1}{2}  \sum_{i=1}^{n}\sum_{j=1}^{n} \alpha_{i}\alpha_{j}y_{i}y_{j}k
 $$\sum_{i=1}^{n}\alpha_{i}y_{i}=0,\quad \alpha_{i} \geq 0,\quad 1\leq i \leq n $$
 采用此方法，得到的结果648个0全部分类正确，36个1分类正确6个；可见远远优于之前提出的统计模型方法，这是现阶段我们得到的最好结果。
 
-\section{结果}
+\section{实验结果}
 
 \section{总结与讨论}
 在这篇文章中，我们对684家上市公司的股票进行ST预测，先采用GLM模型后发现该数据呈现非参数性，故采用半参数的Single-Index的模型再次对数据进行拟合，得到了比GLM较好的结果；最后采用机器学习之Kernel-SVM算法再次对数据进行分析。由于我们所选取的数据中1的值较少，再加上中国股市受很多方面因素特别是政策和国内形势的影响，造成了我们对1的预测成功率最高只有50\%。\\
 
 但是通过上述过程的分析，我们不难发现采用非参数的方法可以更好的拟合模型，而付出的代价则是算法时间复杂度的增加。本例中有7个协变量，若采用普通非参数的方法很难得到有效的求解，故采用Single-Index进行降维；并且，采用Single-Index得到的结果也更加灵活，我们可以采用降低阈值的方法来估计出更多正确的1。总之，通过对这个问题的探究，我们对比了参数模型和非参数模型的优劣，学习掌握了许多对之后的学习研究有帮助的方法;特别是第一次处理真实数据的经历让我们意识到了理论应用于实践过程中的鸿沟，想必也会为将来的学习工作提供宝贵的经验。
+\cite{kipf2016semi}
 
 
 %%%%%%%  参考文献
-%\nocite{*}   % 显示参考文献列表
-%\bibliographystyle{IEEEtranN}
-%\bibliography{references}
+\nocite{*}   % 显示参考文献列表
+\bibliographystyle{IEEEtranN}
+\bibliography{references}
 
 
 
