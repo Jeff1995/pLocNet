@@ -16,10 +16,9 @@ suppressPackageStartupMessages({
 #===============================================================================
 root <- "../result"
 features <- c("3mer", "cnnvae", "cnn")
-predictors <- c("mlp", "gcn")
-models <- as.vector(outer(
-    features, predictors, paste, sep = "_"))
-models <- c("cnn", models)
+mlp_models <- paste(features, "mlp", sep = "_")
+gcn_models <- paste(features, "gcn", sep = "_")
+models <- c("cnn", mlp_models, "gn", gcn_models)
 locs <- read.table("../data/preprocessed/used_labels.txt",
                    sep = "\t", header = FALSE, stringsAsFactors = FALSE)[, 1]
 folds <- 0:4

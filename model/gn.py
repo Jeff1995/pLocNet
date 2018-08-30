@@ -29,7 +29,7 @@ n = data.size()
 localization = pd.DataFrame(
     data["y"], index=data["protein_id"])
 
-print("")
+print("Building neighborhood...")
 neighborhood = dict()
 for i in range(n):
     neighborhood[i] = []
@@ -43,6 +43,7 @@ for i in neighborhood:
     for j in neighborhood[i]:
         if train_mask[j]:
             neighborhood_train[i].append(j)
+
 
 def knn_label(loc, mask):
     labels = np.zeros([n])
@@ -58,26 +59,22 @@ def knn_label(loc, mask):
             labels[i] = sum(
                 localization.iloc[train_mask, loc]
             ) / sum(train_mask)
-    return labels
+    return labels[mask]
 
 
-# Training set
 print("Predicting training set...")
 train_pred = []
 for loc in localization.columns:
-    train_pred.append(knn_label(loc, train_mask)[test_mask])
+    train_pred.append(knn_label(loc, train_mask))
 train_pred = np.stack(train_pred, axis=0).T
 
-# Test set
 print("Predicting test set...")
-train_pred = []
 test_pred = []
 for loc in localization.columns:
-    test_pred.append(knn_label(loc, test_mask)[test_mask])
+    test_pred.append(knn_label(loc, test_mask))
 test_pred = np.stack(test_pred, axis=0).T
 
-
-with h5py.File(os.path.join(cmd_args.output_path, "result.h5")) as f:
+with h5py.File(os.path.join(cmd_args.output_path, "result.h5"), "w") as f:
     g = f.create_group("train")
     g.create_dataset("true", data=data["y"][train_mask])
     g.create_dataset("pred", data=train_pred)
