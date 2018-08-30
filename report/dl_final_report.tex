@@ -1,0 +1,303 @@
+%!TEX program = xelatex
+\documentclass[a4paper,UTF8]{article}
+\usepackage[unicode=true,colorlinks,urlcolor=blue,linkcolor=blue,citecolor=red,bookmarksnumbered=true]{hyperref}
+\usepackage{latexsym,amssymb,amsmath,amsbsy,amsopn,amstext,amsthm,amsxtra,color,multicol,bm,calc,ifpdf}
+\usepackage{ctex}
+\usepackage{graphicx}
+\usepackage{diagbox}   % 绘制表格斜线
+\usepackage{enumerate}
+\usepackage[numbers,authoryear]{natbib}
+\usepackage{fancyhdr}
+\usepackage{subfig}
+\usepackage{listings}
+\usepackage{multirow}
+\usepackage{makeidx}
+\usepackage{xcolor} 
+\usepackage{float}
+\usepackage{geometry}
+\geometry{a4paper,scale=0.7}
+% \geometry{a4paper,left=2cm,right=2cm,top=1cm,bottom=1cm}
+
+\graphicspath{{figures/}}  % 设置图片搜索路径
+
+\newcommand\diff{\,{\mathrm d}}     % 定义微分 d
+\newcommand{\p}[3]{\frac{\partial^{#1}#2}{\partial{#3}^{#1}}}  % 定义求偏导算子
+
+\renewcommand\contentsname{Contents}
+\renewcommand\refname{References}
+\renewcommand\figurename{Figure}
+\renewcommand\tablename{Table}
+
+
+\begin{document}
+\title{
+	\includegraphics[width = 0.85\textwidth]{pku.pdf}\\
+	\vspace{2em}
+	\textbf{\huge{高级计量经济专题作业}}\\
+	\vspace{1em}
+	\large{题目\ \underline{\makebox[20em]{基于半参数模型的财务报表分析与ST预测}}}
+}
+
+\author{姓名\ \underline{\makebox[12em]{周航,郭宇航}}\\
+	学号\ \underline{\makebox[12em]{1701110062，1701110049}}\\
+	学院\ \underline{\makebox[12em]{数学科学学院}}\\
+	专业\ \underline{\makebox[12em]{统计学}}
+}
+
+\date{2018 年 6 月 28 日}
+
+
+\maketitle
+\thispagestyle{empty}
+
+\newpage
+
+
+\tableofcontents
+
+\newpage
+\section*{\heiti{\zihao{4}摘\quad\quad 要}}
+\begin{abstract}
+	\quad 本文试图通过建立统计模型对中国股市的“特别处理”政策进行分析，即根据上市企业当年的财务报表情况对其之后是否非会被“特别处理”进行预测评估。首先我们应用GLM即广义线性模型对数据进行分析，欠佳的结果反映出该数据并非来自于参数模型；之后我们采用半参数方法即Single-Index模型对数据进行拟合，得到了同参数模型相比较好的结果；再之后我们将问题看作一个分类问题，运用Kernel-SVM方法对数据进行分类处理，得到了比之前的模型更满意的结果。 \\
+	\noindent{\heiti 关键字:} Single-Index模型; 股票预测; 分类问题.
+\end{abstract}\thispagestyle{empty}
+\newpage{}
+\section{问题背景与数据描述}
+\subsection{问题背景}
+本论文所要研究的问题背景和数据均来源于微信公众号平台——狗熊会之数据科学行业数据库。\\
+
+“特别处理”（即：Special Treatment, ST）是我国股市特有的一项旨在保护投资者利益的政策。当上市公司出现财务状况或其他状况异常，导致投资者难于判断公司前景，投资者利益可能受到损害时，交易所要对该公司股票交易实行特别处理。被特别处理的股票其每日涨跌幅度是受到限制的。正常情况下，证监会规定一只股票的最高涨跌幅为10\%。但是，如果该股票被特别处理，那么其涨跌幅将被限制在5\%以内。这样就通过政策性的限制约束了该股票的日内波动程度。\\
+
+如果我们把一只股票收益率的波动程度看作是其风险的一个重要含义的话，限制股票的每日涨跌幅度似乎可以在一定程度上控制风险。根据上海证券交易所公布的规定，一个企业被ST最主要的原因是最近两年连续亏损（以最近两年年度报告披露的当年经审计净利润为依据）。对被特别处理的公司股票，除了涨跌幅度限制以外，证监会要求载员股票名称之前加上提醒性注释“ST”。另外，该上市公司的中期报告必须审计。如果一个ST企业仍然持续亏损，那么它将有被退市的风险。\\
+
+
+判定一只股票是否应该被特别处理是一个重大而又复杂的过程，对投资者来说，由于被特别处理的企业面临着退市的风险，其有必要关心什么样的企业更可能被ST。那么一个自然的问题就是——面临ST的企业是否有什么共同特征，我们能否够通过正常的财务报表分析对此有所察觉？本研究要解决的问题就是采用半参数的方法通过分析上市企业的公开财务报表信息，达到预测未来两年内被特别处理ST的可能性的目的，并以此警示投资风险。
+\subsection{数据描述}
+我们从2001到2007年的所有上市企业中，随机抽取了684家企业。这些企业都有满足两个条件。第一、之前从来没有被ST过。第二、当年的盈利是正的。之后对这些企业进行跟踪，若其最终被ST，则记为 $Y=1$,反之记为 $Y=0$。 $Y$ 作为我们研究此问题的因变量。\\
+
+为了能够准确预测企业未来的ST可能性，我们考虑了下面的常见财务指标作为模型的协变量：
+
+\begin{enumerate}[(1)]
+	\item ARA：该指标是应收账款与总资产的比例。它反映的是盈利质量。对于一个企业来说，其资产中，应收账款所占的比重应该是越少越好。该比例越小，说明在该企业的盈利质量越好（即：现金比例高）。相反，该比例越大，说明在该企业的盈利质量越差（即：现金比例低）。
+	\item ASSET：该指标是对数变换后的资产规模，用于反映公司规模。
+	
+	\item ATO：该指标是资产周转率。它是一个企业在一定时期内（例如：一年以内）的销售收入静额除以资产平均总额而得。ATO量化的是一个企业对资产的利用效率。
+	
+	\item ROA：该指标是资产收益率。它是一个企业在一定时期内（例如：一年以内）的利润总额除以总资产而得。它反映的是每单位资产能够给企业带来的利润。
+	\item GROWTH：该指标是销售收入增长率。它是一个企业在一定时期内（例如：一年以内）的销售总额除以前一个时期的销售总额而得。它反映的是企业的增长速度。
+	\item LEV：该指标是债务资产比率，也被叫做杠杆比率。按照定义，它是一个企业债务在其总资产中所占的比率。它反映的是企业的总资产中，来自于债权人的比率。
+	\item SHARE：该指标是企业第一大股东的持股比率，反映的是该企业的股权结构。
+\end{enumerate}
+\section{模型方法}
+
+\subsection{图卷积模型}
+
+许多重要的现实世界数据集以图形或网络的形式出现：如社交网络，知识图谱，蛋白质交互网络，万维网等。 然而，直到最近人们也很少关注神经网络模型对这种结构化数据集的应用。\\
+
+推广完善的神经模型（如RNN或CNN）来处理任意结构化图形是一个具有挑战性的问题。最近的一些论文介绍了特定问题的网络架构（例如Duvenaud等人，NIPS 2015; Li等人，ICLR 2016; Jain等人，CVPR 2016），其他人则利用谱图理论中已知的图形卷积（Bruna et例如，ICLR 2014; Henaff等，2015）定义用于多层神经网络模型的参数化滤波器，类似于我们所熟知和喜爱的“经典”CNN。最近的工作重点是弥合快速启发式的算法和高昂的计算复杂度。 Defferrard等人（NIPS 2016）使用具有自由参数的切比雪夫多项式在谱域中近似平滑滤波器，所述自由参数在类似神经网络的模型中学习。它们在常规域（如MNIST）上取得令人信服的结果，与简单的2D CNN模型非常接近。在Kipf＆Welling（ICLR 2017）中，我们采用了一种类似的方法，从谱图卷积的框架开始，然后引入简化（我们将在后面的文章中介绍），在许多情况下可以兼得显著加快训练时间和更高的预测准确性两者，在许多基准图数据集上达到最先进的分类结果。\\
+
+目前，大多数图形神经网络模型具有一些共同的通用架构。 我将这些模型称为图形卷积网络（GCN）; 卷积，因为滤波器参数通常在图中的所有位置（或其子集，如Duvenaud等，NIPS 2015中）共享。\\
+
+对于这些模型，目标是在图形$G=(V,E)$上学习信号/特征的函数;输入如下：\\
+
+每个节点i的特征描述xi; 总结在N×D特征矩阵X中（N：节点数，D：输入特征数）
+矩阵形式的图结构的代表性描述; 通常以邻接矩阵A（或其某些功能）的形式
+并产生节点级输出Z（N×F特征矩阵，其中F是每个节点的输出特征数）。 图形级输出可以通过引入某种形式的池操作来建模（参见，例如Duvenaud等，NIPS 2015）。
+
+然后可以将每个神经网络层写为非线性函数
+H（L + 1）= F（H（L）的A），
+H（0）= X且H（L）= Z（或图形级输出为z），L为层数。 然后，具体模型的区别仅在于如何选择f（⋅，⋅）和参数化。
+
+\[ H^{(l+1)} = \sigma \left( \hat{D}^{-\frac{1}{2}} \hat{A} \hat{D}^{-\frac{1}{2}} H^{(l)}W^{(l)}\right)\]
+
+
+
+
+由于$y_{i}$是0-1变量，故我们首先考虑用GLM对数据进行拟合，假设$y_{i}$服从参数为$p_{i}$的伯努利分布，即
+$$f(y_i,p_i,n_i)=exp\left\{ \left(y_{i}\log \frac{p_{i}}{1-p_{i}} -\left(-\log (1-p_{i}) \right)\right)/\left(\frac{1}{n_i} \right)+\log \binom{n_i}{n_iy_{i}} \right\} $$ 
+
+假设$\mathbb{E}y_{i}$即$p_{i}$经过连接函数$g(\cdot)$变换后与协变量$x_{i}$呈线性关系，即$ g(p_{i})=\eta_{i}=x_{i}'\beta  $.
+我们可以选取以下函数作为连接函数
+\begin{itemize}
+	\item Logistic Link: $$g(x)=\log \frac{\mu}{1-\mu}\quad\quad p_{i}=\frac{e^{\eta_{i}}}{1+e^{\eta_{i}}} $$
+	\item Probit Link: $$g(x)=\Phi^{-1}(x) \quad\quad p_{i}=\Phi(\eta_{i})  $$
+	\item C log-log Link: $$\log(-\log(1-\mu)) \quad\quad p_{i}=1-exp\{  -e^{\eta_{i}}\}$$
+\end{itemize}
+
+这三类连接函数在$p_{i}\in (0.1,0.9)$时差别不大，但是此问题的数据中被“ST”的样本数目较少，即$p_{i}$的值较小，故在模型假设正确的情况下连接函数的选择可能会影响模型的拟合结果。\\
+
+采用 Fisher-Scoring 或者 Newton-Raphson 算法, 我们可以得到 $\beta$的估计值$\hat{\beta}$, 之后我们可以得到 $\hat{\eta_{i}}$ 和 $\hat{p_{i}}$。我们想估计的 $y_{i}$ 是一个取值为0或者1的随机变量， 所以我们要把介于0，1之间的$\hat{p_{i}}$转换为0或1。\\
+
+我们可以选取一个临界值 $\tau $ 然后令：
+$$ \hat{y_{i}} = \left\{
+\begin{array}{rcl}
+1     &      & {\text{if} \quad \hat{p_{i}} \geq \tau}\\
+0     &      & {\text{if} \quad \hat{p_{i}}<\tau}\\
+\end{array} \right. $$
+
+对于临界值$\tau $的选取，我们可以采用如下两种方法。
+\begin{enumerate}[1.]
+	\item 简单的选取 $\tau$ 等于0.5;
+	\item 采用同时控制第一类错误概率和第二类错误概率的方法根据样本数据得到$\tau$.
+\end{enumerate}
+
+由此得到的拟合结果和分析如下：
+\begin{enumerate}[(1)]
+	\item 648个属于0类别的企业分类结果正确的有647个，36个属于1类别的企业分类正确的有1个；
+	\item 采用三种连接函数得到的结果无差异；
+	\item 降低临界值$\tau$，会小幅度提高把属于1类别的企业分类正确的数目，但是同时会显著提升0分类的错误的数目。
+\end{enumerate}
+
+鉴于以上三点，说明GLM模型并不适用于本数据。于是，我们接下来考虑半参数的Single Index模型。
+
+\subsection{Single Index 模型}
+为了更好的预测被特别处理的可能性，我们采用半参数的方法来建立回归模型，进而得出因变量与协变量之间关系。模型的基本假设如下：
+
+考虑 Binary Choice Model：
+$$ Y = \left\{
+\begin{array}{rcl}
+1     &      & {if \quad Y_i^{*}>0}\\
+0     &      & {if \quad Y_i^{*}\leq0}\\
+\end{array} \right. $$
+
+其中$Y_i^{*}$是中间变量，与协变量相关。
+\[ Y_i^{*}=\alpha+X'\beta+\epsilon_i \]
+
+假设$F_\epsilon$是随机项$\epsilon$的累积分布函数，则有：
+\begin{align*}
+E(Y|x)&=P(Y=1|x)=P(Y_i^{*}>0|x)\\
+&=P(\epsilon_i>-(\alpha+X'\beta))=1-F_\epsilon(-(\alpha+X'\beta))\\
+&=m(\alpha+X'\beta)
+\end{align*}
+
+值得说明的是，$F_\epsilon$未知，是我们模型待估计的参量，以上模型由协变量的线性组合复合一个函数组成，称为半参数 single index 模型。
+
+更一般的半参数模型有如下形式：
+\[  Y=g(x'\beta_0)+u  \]
+\[ E(u|X)=0 \]
+
+对于我们用到的半参数Binary Choice Model模型，有：
+\[ E(Y|x)=g(x'\beta_0)=m(\alpha+X'\beta) \]
+$$i.e. \qquad g(t)=m(\alpha+t)$$
+其中$\beta$是未知的参数，$g()$是连接函数，需要我们去估计。\\
+
+根据高级计量经济专题讲义的内容，关于参数的估计方法大致有两种思路:
+\begin{itemize}
+	\item 当g的形式已知时，可以很简单的用非线性回归来给出$\beta$的估计。进一步，此时的问题即是广义线性模型的范畴，我们可以用迭代算法给出结果，并做出统计推断和分析解释。
+	\item 当g的形式未知时，不妨用kernel methods来估计$g()$的形式。估计的方法有Ichimura’s Estimator, Average Derivative estimator 等。
+	\item 对于Binary Choice Model, Klein \& Spady’s Estimator, Lewbel’s Estimator, Manski’s Maximum Score Estimator, Horowitz’s Smoothed Maximum Score Estimation, Han’s Maximum Rank Estimator 等方法均有可能派的上用场。
+\end{itemize}
+
+在此例中，我们采用 Klein \& Spady’s Estimator， 即
+$$\hat{\beta}_{KS}= \arg \max \mathbb{L} (\beta) $$
+$$\mathbb{L} (\beta)=\sum (1-Y_{i})\ln (1-\hat{g}(x_{i}\beta))+\sum Y_{i}\ln (\hat{g}(x_{i}\beta)) $$
+
+通过R中的np包可以实现上述算法，若把所有7个变量放入模型中，得到的结果和分析如下：
+\begin{enumerate}[(1)]
+	\item 若取$\tau=0.5$，648个0分类正确的有648个，36个1分类正确的有3个，总体正确率95.17\%
+	\item ASSET与SHARE的系数并不显著 
+\end{enumerate}
+
+若改变临界值 $\tau$,可提高将1分类正确的数目，并且同时由此带来0错误的数目的略有增加，但是相较GLM结果相比有很大的提升，结果如表 \ref{tab:tab1} 所示。\\
+\begin{table}[h]
+	\centering
+	\caption{Full Single Index Model}\label{tab:tab1}
+	\begin{tabular}{|l|c|c|c|c|c|}
+		\hline
+		$\tau$ &  0.5 & 0.4 & 0.3 & 0.2& 0.1 \\
+		\hline
+		\text{Correct} 1 & 3  & 3 &  4 & 10 &24    \\ \hline
+		\text{Correct} 0 & 648 & 648 & 647  & 634 & 557   \\ \hline
+		\text{Wrong}  1 & 33  & 33 & 32  & 26 &  12  \\ \hline
+		\text{Wrong} 0 & 0  & 0 & 1  & 14 &  91  \\ \hline
+		\text{TCR} & 95.17\%  &  95.17\%  &  95.17\%  & 94.15\% &  84.94\%  \\
+		\hline 
+	\end{tabular}
+\end{table}
+
+考虑到上述模型中ASSET与SHARE的系数并不显著，我们把这两个协变量从模型中剔除，再次求解Single-Index模型，得到的结果和分析如下：
+\begin{enumerate}[(1)]
+	\item 若取$\tau=0.5$，648个0分类正确的有648个，36个1分类正确的有4个，总体正确率95.32\%，同全模型相比有一定的提升;
+	\item 采用同上相同的方法，若改变临界值 $\tau$, ，得到的结果如下表 \ref{tab:tab2} 所示：
+	\begin{table}[!htb]
+		\centering
+		\caption{Reduced Single Index Model}\label{tab:tab2}
+		\begin{tabular}{|l|c|c|c|c|c|}
+			\hline
+			$\tau$ &  0.5 & 0.4 & 0.3 & 0.2& 0.1 \\
+			\hline
+			\text{Correct} 1 & 4  & 8 &  9 & 14 &17    \\ \hline
+			\text{Correct} 0 & 648 & 637 & 636  & 634 & 582   \\ \hline
+			\text{Wrong} 1 & 32  & 27 & 22  & 26 &  19  \\ \hline
+			\text{Wrong} 0 & 0  & 11 & 12  & 14 &  66  \\ \hline
+			\text{TCR} & 95.32\%  &  94.29\%  &  94.44\%  & 95.03\% &  87.57\%  \\
+			\hline 
+		\end{tabular}
+	\end{table}
+\end{enumerate}
+对比以上两个模型，我们可以得到以下结论：
+\begin{enumerate}[a.]
+	\item 对于全模型，降低 $\tau$ 的值可以提高1预测的准确性，但随之而来的代价是0预测错误率提高。具体来说，$\tau$ 值从0.5下降到0.2时， 预测的结果变化不大，但是从0.2将到0.1时，预测结果有着较大的变化，1的预测正确率显著提高，但是随之而来的代价是总体预测正确率的下降。
+	\item 对于降阶模型，同全模型一样随着$\tau$的降低，1预测的准确性提高，0预测的准确性降低。但是，同全模型不同的是，随着$\tau$的降低，
+	模型的预测结果变化比较均匀。 
+\end{enumerate}
+
+
+
+\section{Kernel SVM}
+采用 Single-Index 模型较GLM相比已经有了很大的进步，我们继续尝试一些机器学习的方法对数据进行建模。
+
+支持向量机（SVM）是一种应用广泛的分类方法，其原理是在高维或无限维空间中构造超平面或超平面集合，使得分类边界距离最近的训练数据点尽可能的远，如下图所示：
+\begin{figure}[H]
+	\centering\includegraphics[scale=0.3]{p1.png}
+\end{figure}
+\begin{itemize}
+	\item 称训练样本是线性可分的，如果存在决策超平面 $w\cdot x+b=0 $，使得以
+	下两式成立 ：
+	$$w\cdot x_{i}+b\geq 1 \quad\text{for}\quad y_{i}=1 $$
+	$$w\cdot x_{i}+b\leq -1 \quad\text{for\quad} y_{i}=-1 $$
+	\item 称决策超平面是最优的，如果训练集到该超平面的最小距离最大。
+\end{itemize}
+
+线性最优分离超平面相当于在约束条件 $y_{i}(w\cdot x_{i}+b) \geq 1$ 下，找到 $\frac{2}{|w|}$ 的最大值。此最优化问题等价于在约束条件 $y_{i}(w\cdot x_{i}+b) \geq 1$ 下，求$ \frac{||w ||^{2}}{2}$	的最小值。我们可以采用ADMM算法对此问题进行求解。即
+$$\min \frac{1}{2}  \sum_{i=1}^{n}\sum_{j=1}^{n} \alpha_{i}\alpha_{j}y_{i}y_{j}x_{i}^{T}x_{j} - \sum_{i=1}^{n}\alpha_{i}$$
+$$\sum_{i=1}^{n}\alpha_{i}y_{i}=0,\quad \alpha_{i} \geq 0,\quad 1\leq i \leq n $$
+
+尽管原始问题可能是在有限维空间中陈述的，但用于区分的集合在该空间中往往线性不可分。为此，有人提出将原有限维空间映射到维数高得多的空间中，在该空间中进行分离可能会更容易，这就是Kernel-SVM算法。下图用一个简单的例子生动形象的描述了这一算法的思想：
+\begin{figure}[H]
+	\centering\includegraphics[scale=0.2]{p2.png}
+\end{figure}
+
+线性SVM的算法求解依赖向量之间的内积$x_{i}^{T}x_{j}$, 而Kernel-SVM的算法是用一个映射$\phi:x\rightarrow\phi(x)$ 把数据映射到高维空间，之后用核函数的形式替代两个向量的内积，即
+$$K(x_{i},x_{j})=\phi(x_{i})^{T}\phi(x_{j}) $$
+
+这里的“Kernel”与我们在非参数统计课程中所学的“Kernel-Smoothing”、\\“Kernel-Estimation”中的“Kernel”意义相同。非参数方法中的“Kernel”，实际上是距离函数，$\frac{1}{n}\sum K_{h}(x_{i}-x)$ 就是$x$附近点到$x$距离的加权和。而内积就是希尔伯特空间中对距离的推广。此问题用数学语言描述出来即为：在由$K$作为再生核生成的再生希尔伯特空间(RKHS)中找到合适的函数，使得变换后的数据可以被该函数分割成两部分。因为我们优化问题的空间是一个函数空间(RKHS),所以这是一种非参数方法。
+
+在此例中，我们采用多项式核函数，即$K(x,z)=<x,z> $, 其他常用的核函数还有：
+\begin{itemize}
+	\item 径向基函数(RBF): $K(x,z)=e^{-||x-z||^{2}/2\sigma} $
+	\item 双曲正切核函数：$K(x,z)=tanh(kx^{T}y+\theta) $
+\end{itemize}
+
+对于此问题的求解，只需把线性情况下的内积换成核函数，即：
+$$\min \frac{1}{2}  \sum_{i=1}^{n}\sum_{j=1}^{n} \alpha_{i}\alpha_{j}y_{i}y_{j}k(x_{i},x_{j}) - \sum_{i=1}^{n}\alpha_{i}$$
+$$\sum_{i=1}^{n}\alpha_{i}y_{i}=0,\quad \alpha_{i} \geq 0,\quad 1\leq i \leq n $$
+采用此方法，得到的结果648个0全部分类正确，36个1分类正确6个；可见远远优于之前提出的统计模型方法，这是现阶段我们得到的最好结果。
+
+
+\section{总结}
+在这篇文章中，我们对684家上市公司的股票进行ST预测，先采用GLM模型后发现该数据呈现非参数性，故采用半参数的Single-Index的模型再次对数据进行拟合，得到了比GLM较好的结果；最后采用机器学习之Kernel-SVM算法再次对数据进行分析。由于我们所选取的数据中1的值较少，再加上中国股市受很多方面因素特别是政策和国内形势的影响，造成了我们对1的预测成功率最高只有50\%。\\
+
+但是通过上述过程的分析，我们不难发现采用非参数的方法可以更好的拟合模型，而付出的代价则是算法时间复杂度的增加。本例中有7个协变量，若采用普通非参数的方法很难得到有效的求解，故采用Single-Index进行降维；并且，采用Single-Index得到的结果也更加灵活，我们可以采用降低阈值的方法来估计出更多正确的1。总之，通过对这个问题的探究，我们对比了参数模型和非参数模型的优劣，学习掌握了许多对之后的学习研究有帮助的方法;特别是第一次处理真实数据的经历让我们意识到了理论应用于实践过程中的鸿沟，想必也会为将来的学习工作提供宝贵的经验。
+
+
+%%%%%%%  参考文献
+%\nocite{*}   % 显示参考文献列表
+%\bibliographystyle{IEEEtranN}
+%\bibliography{references}
+
+
+
+
+\end{document}
+

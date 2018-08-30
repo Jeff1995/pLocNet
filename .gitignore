@@ -108,4 +108,6 @@ venv.bak/
 /debug/*
 /backup/*
 /result/*
+/report/*
 !/result/*.pdf
+!/report/*.tex
