@@ -46,7 +46,6 @@ def read_data(x, y, g, split):
     x = x[utils.get_idx_mapper(x_idx)(xg_idx)]
     g_extract = utils.get_idx_mapper(g_idx)(xg_idx)
     g = g[g_extract[:, None], g_extract]
-    y = y[:, 0:1]
     y = np.concatenate([y, np.zeros(
         (1,) + y.shape[1:], dtype=y.dtype.type
     )], axis=0)  # Fill zeros if not existing

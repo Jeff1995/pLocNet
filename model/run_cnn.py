@@ -46,7 +46,8 @@ def main():
         path=cmd_args.output_path,
         input_len=train_val_data["x"].shape[1],
         input_channel=train_val_data["x"].shape[2],
-        kernel_num=500, kernel_len=5, fc_depth=1, fc_dim=100,
+        kernel_num=1000, kernel_len=5,
+        fc_depth=2, fc_dim=1000, final_fc_dim=100,
         class_num=train_val_data["y"].shape[1],
         class_weights=[(
             0.5 * train_val_data.size() / (
@@ -69,7 +70,7 @@ def main():
     evaluate(model, train_val_data, test_data, cmd_args.output_path)
     if cmd_args.save_hidden:
         all_data = train_val_data + test_data
-        hidden = model.fetch(model.prepred, all_data)
+        hidden = model.fetch(model.final_fc, all_data)
         with h5py.File(os.path.join(
             cmd_args.output_path, "hidden.h5"
         ), "w") as f:
