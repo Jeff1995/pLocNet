@@ -55,16 +55,14 @@ for i in neighborhood:
             if train_mask[j]:
                 neighborhood_test[i].append(j)
 
-test_used=np.zeros([n],dtype='bool')
-for i in range(n):
-    test_used[i] = test_mask[i] and len(neighborhood_test[i])>0
-
-
 def knn_label(loc):
     labels = np.zeros([n])
     for i in range(n):
-        if test_used[i]:
-            labels[i] = len([j for j in neighborhood_test[i] if localization_rv.loc[sample[j],loc]])/len(neighborhood_test[i])
+        if test_mask[i]:
+            if len(neighborhood_test[i])>0:
+                labels[i] = len([j for j in neighborhood_test[i] if localization_rv.loc[sample[j],loc]])/len(neighborhood_test[i])
+            else:
+                labels[i] = sum(localization_rv.loc[train_mask,loc]/sum(train_mask)
     return(labels)
 
 
@@ -87,5 +85,4 @@ def evaluate(labels,preds):
 
 for loc in localization_rv.columns:
     print(loc+' results')
-    evaluate(localization_rv[loc].iloc[test_used] ,knn_label(loc)[test_used])
-
+    evaluate(localization_rv[loc].iloc[test_mask] ,knn_label(loc)[test_mask])
