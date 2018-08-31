@@ -56,172 +56,119 @@
 \tableofcontents
 
 \newpage
-\section*{\heiti{\zihao{4}摘\quad\quad 要}}
+
+\section*{}
 \begin{abstract}
-	\quad 本文试图通过建立统计模型对中国股市的“特别处理”政策进行分析，即根据上市企业当年的财务报表情况对其之后是否非会被“特别处理”进行预测评估。首先我们应用GLM即广义线性模型对数据进行分析，欠佳的结果反映出该数据并非来自于参数模型；之后我们采用半参数方法即Single-Index模型对数据进行拟合，得到了同参数模型相比较好的结果；再之后我们将问题看作一个分类问题，运用Kernel-SVM方法对数据进行分类处理，得到了比之前的模型更满意的结果。 \\
-	\noindent{\heiti 关键字:} Single-Index模型; 股票预测; 分类问题.
+	\quad 如何将图结构信息应用于图节点的分类问题一直是一个备受关注的问题。在本工作中，我们应用了2016年Kipf等人发展的图卷积神经网络（GCN）模型，利用蛋白质相互作用网络信息和基于卷积神经网络（CNN）模型提取的蛋白质序列特征进行蛋白质11种主要细胞亚定位进行预测，取得了比未利用蛋白质互作信息的模型和未使用CNN提取的特征的模型更好的预测功效，表明GCN模型在蛋白质细胞亚定位预测问题上具有的优越性。相关的数据集和代码见https://github.com/Jeff1995/pLocNet。
+ \\
+ 
+	\noindent{\heiti 关键字:} 图卷积神经网络；蛋白质细胞亚定位；分类问题.
 \end{abstract}\thispagestyle{empty}
 \newpage{}
 \section{问题背景}
 \subsection{图卷积模型}
-许多重要的现实世界数据集以图形或网络的形式出现：如社交网络，知识图谱，蛋白质交互网络，万维网等。 然而，直到最近人们也很少关注神经网络模型对这种结构化数据集的应用。\\
 
-推广完善的神经模型（如RNN或CNN）来处理任意结构化图形是一个具有挑战性的问题。最近的一些论文介绍了特定问题的网络架构（例如Duvenaud等人，NIPS 2015; Li等人，ICLR 2016; Jain等人，CVPR 2016），其他人则利用谱图理论中已知的图形卷积（Bruna et例如，ICLR 2014; Henaff等，2015）定义用于多层神经网络模型的参数化滤波器，类似于我们所熟知和喜爱的“经典”CNN。最近的工作重点是弥合快速启发式的算法和高昂的计算复杂度。 Defferrard等人（NIPS 2016）使用具有自由参数的切比雪夫多项式在谱域中近似平滑滤波器，所述自由参数在类似神经网络的模型中学习。它们在常规域（如MNIST）上取得令人信服的结果，与简单的2D CNN模型非常接近。在Kipf＆Welling（ICLR 2017）中，我们采用了一种类似的方法，从谱图卷积的框架开始，然后引入简化（我们将在后面的文章中介绍），在许多情况下可以兼得显著加快训练时间和更高的预测准确性两者，在许多基准图数据集上达到最先进的分类结果。\\
+现实世界中有许多重要的数据集以图或网络的形式出现：如社交网络，知识图谱，蛋白质交互网络，万维网等等。然而，迄今为止人们也很少关注神经网络模型对这种结构化数据集的推广应用。\\
 
-目前，大多数图形神经网络模型具有一些共同的通用架构。 我将这些模型称为图形卷积网络（GCN）; 卷积，因为滤波器参数通常在图中的所有位置（或其子集，如Duvenaud等，NIPS 2015中）共享。\\
+如何完善地推广神经网络模型（如RNN或CNN）来处理任意结构化图形数据是一个具有挑战性的问题。最近的一些工作介绍了特定问题的网络架构（Duvenaud et al., NIPS 2015; Li et al., ICLR 2016; Jain et al., CVPR 2016），其他人则利用谱图理论中的图形卷积（Bruna et al., ICLR 2014; Henaff et al., 2015）来定义用于多层神经网络模型的参数化滤波器，类似于我们所熟知和喜爱的“经典”CNN。\\
 
-对于这些模型，目标是在图形$G=(V,E)$上学习信号/特征的函数;输入如下：\\
+最近的工作重点是跨越快速启发式的算法和高昂的计算复杂度之间的鸿沟。Defferrard et al. (NIPS 2016)使用切比雪夫多项式在谱域中近似平滑滤波器，其中所述的自由参数在类似神经网络的模型中学习。它们在常规数据集（如MNIST）上取得令人信服的结果，与简单的2D-CNN模型非常接近。Kipf＆Welling等人采用了一种类似的方法（ICLR 2017），从谱图卷积的框架开始，然后引入简化近似，从而兼得显著加快训练时间和提高预测准确性这两个优点，最后在许多基准图数据集上达到最先进的分类结果。\\
 
-每个节点i的特征描述xi; 总结在N×D特征矩阵X中（N：节点数，D：输入特征数）
-矩阵形式的图结构的代表性描述; 通常以邻接矩阵A（或其某些功能）的形式
-并产生节点级输出Z（N×F特征矩阵，其中F是每个节点的输出特征数）。 图形级输出可以通过引入某种形式的池操作来建模（参见，例如Duvenaud等，NIPS 2015）。
+目前，大多数图形神经网络模型具有一些共同的通用架构。 Kipf等人将这些模型称为图形卷积网络（GCN）；之所以被称为卷积，是因为滤波器参数通常在图中的所有位置共享（或其子集，如Duvenaud et al., NIPS 2015）。\\
 
-然后可以将每个神经网络层写为非线性函数
-H（L + 1）= F（H（L）的A），
-H（0）= X且H（L）= Z（或图形级输出为z），L为层数。 然后，具体模型的区别仅在于如何选择f（⋅，⋅）和参数化。
-
-\[ H^{(l+1)} = \sigma \left( \hat{D}^{-\frac{1}{2}} \hat{A} \hat{D}^{-\frac{1}{2}} H^{(l)}W^{(l)}\right)\]
-
-
-
-
-由于$y_{i}$是0-1变量，故我们首先考虑用GLM对数据进行拟合，假设$y_{i}$服从参数为$p_{i}$的伯努利分布，即
-$$f(y_i,p_i,n_i)=exp\left\{ \left(y_{i}\log \frac{p_{i}}{1-p_{i}} -\left(-\log (1-p_{i}) \right)\right)/\left(\frac{1}{n_i} \right)+\log \binom{n_i}{n_iy_{i}} \right\} $$ 
-
-假设$\mathbb{E}y_{i}$即$p_{i}$经过连接函数$g(\cdot)$变换后与协变量$x_{i}$呈线性关系，即$ g(p_{i})=\eta_{i}=x_{i}'\beta  $.
-我们可以选取以下函数作为连接函数
+对于这些模型，目标是在图形$G=(V,E)$上学习信号/特征的函数;输入如下：
 \begin{itemize}
-	\item Logistic Link: $$g(x)=\log \frac{\mu}{1-\mu}\quad\quad p_{i}=\frac{e^{\eta_{i}}}{1+e^{\eta_{i}}} $$
-	\item Probit Link: $$g(x)=\Phi^{-1}(x) \quad\quad p_{i}=\Phi(\eta_{i})  $$
-	\item C log-log Link: $$\log(-\log(1-\mu)) \quad\quad p_{i}=1-exp\{  -e^{\eta_{i}}\}$$
+	\item 每个节点$i$的特征描述$x_i$，总结在一个$N×D$的特征矩阵$X$中（$N$：节点数，$D$：输入特征数）；
+	\item 反映节点之间关系的图结构的代表性描述，通常以邻接矩阵$A$的形式；
 \end{itemize}
 
-这三类连接函数在$p_{i}\in (0.1,0.9)$时差别不大，但是此问题的数据中被“ST”的样本数目较少，即$p_{i}$的值较小，故在模型假设正确的情况下连接函数的选择可能会影响模型的拟合结果。\\
+输出是描述节点特征的$N×F$矩阵$Z$，其中$F$是每个节点的输出特征数）。\\
 
-采用 Fisher-Scoring 或者 Newton-Raphson 算法, 我们可以得到 $\beta$的估计值$\hat{\beta}$, 之后我们可以得到 $\hat{\eta_{i}}$ 和 $\hat{p_{i}}$。我们想估计的 $y_{i}$ 是一个取值为0或者1的随机变量， 所以我们要把介于0，1之间的$\hat{p_{i}}$转换为0或1。\\
+Kipf等人将每个神经网络层写为非线性函数：\\
+$$H^{(l+1)}= f(H^{(l)},A)$$
+其中 $H^{(0)}= X$且$H^{(l)}= Z$，$L$为层数。具体模型的区别仅在于如何选择和参数化$f(\cdot,\cdot)$。\\
 
-我们可以选取一个临界值 $\tau $ 然后令：
-$$ \hat{y_{i}} = \left\{
-\begin{array}{rcl}
-1     &      & {\text{if} \quad \hat{p_{i}} \geq \tau}\\
-0     &      & {\text{if} \quad \hat{p_{i}}<\tau}\\
-\end{array} \right. $$
+Kipf等人使用了以下的隐含层迭代规则：\\
+$$f(H^{(l)},A) = \sigma(AH^{(l)}W^{(l)})$$
+其中$W^{(l)}$是第$l$个神经网络层的权重矩阵，$\sigma(\cdot)$是类似ReLU的非线性激活函数。尽管它很简单，但这个模型已经非常强大了，在文献引用网络和知识网络的数据集中表现出了良好的预测性能。\\
 
-对于临界值$\tau $的选取，我们可以采用如下两种方法。
-\begin{enumerate}[1.]
-	\item 简单的选取 $\tau$ 等于0.5;
-	\item 采用同时控制第一类错误概率和第二类错误概率的方法根据样本数据得到$\tau$.
-\end{enumerate}
+这个简单的模型存在两个局限：首先，每步迭代中乘以A意味着，对于每个节点，我们将所有相邻节点的所有特征相加而没有节点本身。通过在图中添加自环，即将单位矩阵添加到A可以解决这个问题。\\
 
-由此得到的拟合结果和分析如下：
-\begin{enumerate}[(1)]
-	\item 648个属于0类别的企业分类结果正确的有647个，36个属于1类别的企业分类正确的有1个；
-	\item 采用三种连接函数得到的结果无差异；
-	\item 降低临界值$\tau$，会小幅度提高把属于1类别的企业分类正确的数目，但是同时会显著提升0分类的错误的数目。
-\end{enumerate}
+第二个主要限制是A通常不归一化，因此与A的乘法将完全改变特征向量的数量级（可以通过查看A的特征值来理解）。归一化A使得所有行总和为1，即$D^{-1}A$，其中D是对角节点度矩阵，从而摆脱了这个问题。与$D^{-1}$相乘意味着取相邻节点特征的平均值。实际上，当使用对称归一化时，算法变得更有趣，即$\widetilde{A}={D}^{-\frac{1}{2}} {A} {D}^{-\frac{1}{2}} $。这两个技巧的结合即可得出Kipf＆Welling（ICLR 2017）中的传播规则：
 
-鉴于以上三点，说明GLM模型并不适用于本数据。于是，我们接下来考虑半参数的Single Index模型。
+\[ H^{(l+1)} = f(H^{(l)},A) = \sigma \left( \hat{D}^{-\frac{1}{2}} \hat{A} \hat{D}^{-\frac{1}{2}} H^{(l)}W^{(l)}\right)\]
+其中$\hat{A}= A + I$，$I$是单位矩阵，$\hat{D}$是对角节点度矩阵。
+
+这个式子的意义显而易见：每一步隐含层的取值都是上一步相邻节点的平均值再经过激活函数变换后的结果。为了进一步说明这个表达式的来源和优点，以下将进一步阐述它的理论动机。\\
+
+考虑多层图形卷积网络（GCN）的分层传播规则，我们将要证明这种传播规则的形式可以通过图上的局部光谱滤波器的一阶近似来启发得到（Hammond et al., 2011; Defferrard et al., 2016）。\\
+
+符号说明：图的（归一化）拉普拉斯矩阵$L$可以很容易从对称归一化图邻接矩阵$\widetilde{A}$计算出来：$L = I_N-\widetilde{A} = I_N-{D}^{-\frac{1}{2}} {A} {D}^{-\frac{1}{2}} = U \Lambda U'$。值得一提的是这两个矩阵具有特殊的性质：$\widetilde{A}$的最大特征值是1，最小特征值不小于-1；从而$L$的特征值也都介于0和2之间。\\
+
+图傅里叶变换被定义为图信号$X$（即每个节点的特征向量）与图的拉普拉斯矩阵$L$的特征向量矩阵$U$的乘法，即$U'x$。频谱图卷积被定义为信号与图的傅立叶空间中的滤波器的乘法,滤波器以$g_\theta=diag(\theta)$表示，$\theta$是参数。于是有频谱图卷积表达式：
+$$g_\theta \ast x = U g_\theta U' x$$
+可以看出，上式的计算复杂度是比较大的，因为与特征向量矩阵$U$的乘法是$O(N^2)$的。 此外，首先计算$L$的特征分解对于大的图结构来说可能是非常高昂的。为了避免这个问题，Hammond et al. (2011) 提出）$g_{\theta}(\Lambda)$可以通过Chebyshev多项式$T_k(x)$直到K阶的截断展开很好地近似：
+$$g_{\theta'}(\Lambda)\approx\sum\limits_{k=0}^K \theta'_k T_k(\widetilde{\Lambda})$$
+重新调整的$\widetilde{\Lambda}=\frac{2}{\lambda_{max}}\Lambda-I_N$。$\lambda_{max}$表示L的最大特征值,一般近似取做2，$\theta$是切比雪夫多项式的系数，于是我们得到：
+$$g_\theta' \ast x \approx \sum\limits_{k=0}^K \theta'_k T_k(\widetilde{L})x $$
+$\widetilde{L}=\frac{2}{\lambda_{max}}L-I_N$，
+这个表达式的计算复杂度是$O(\vert E \vert)$即与图的边数为线性关系。\\
+
+现在，假设我们将逐层卷积运算限制为$K = 1$,得到了GCN的这种简化线性公式：
+$$g_\theta \ast x \approx \theta'_0x + \theta'_1(L-I_N)x=\theta'_0x-\theta'_1{D}^{-\frac{1}{2}} {A} {D}^{-\frac{1}{2}} x$$
+有两个自由参数,可以在整个图表上共享。在实践中，不妨进一步限制参数的数量可能是有益的，以解决过度拟合并最小化每层的操作（例如矩阵乘法）的数量。 这给我们留下了以下表达式：
+$$g_\theta \ast x \approx \theta \left(I_N+{D}^{-\frac{1}{2}} {A} {D}^{-\frac{1}{2}} \right)x$$
+使用单个参数$\theta=\theta_0=-\theta_1$。 注意，$I_N+{D}^{-\frac{1}{2}} {A} {D}^{-\frac{1}{2}}$具有特征值
+范围[0,2]。 因此，当在深度神经网络模型中使用时，重复应用该算子可能导致数值不稳定性和梯度爆炸/消失的情况。 为了缓解这种问题，我们引入以下重整化技巧：$I_N+{D}^{-\frac{1}{2}} {A} {D}^{-\frac{1}{2}} \rightarrow \hat{D}^{-\frac{1}{2}} \hat{A} \hat{D}^{-\frac{1}{2}}$， 其中$\hat{A}= A + I_N$\\
+
+我们可以将该定义推广到具有$C$个输入通道的信号,$X$为$N×C$维矩阵和F维的过滤器输出如下：
+$$Z = \hat{D}^{-\frac{1}{2}} \hat{A} \hat{D}^{-\frac{1}{2}} X \Theta $$
+其中$\Theta $为$C×F$维，现在作为滤波器参数矩阵，$Z$为$N×F$维是卷积信号矩阵。该滤波操作具有计算复杂度$O(\vert E \vert FC)$，因为关于$X$的矩阵乘法可以有效地实现为密集矩阵与稀疏矩阵的乘积。从而我们得到了一开始介绍的图卷积多层传播表达式。
 
 \subsection{蛋白质亚细胞定位}
 
 蛋白质亚细胞定位预测是一类重要的生物信息学问题。相关的预测工具通常以蛋白质本身的氨基酸序列信息为输入，输出预测的蛋白质细胞亚定位。它可以提供蛋白质功能和基因注释的信息，辅助药物靶点的识别。
+<<<<<<< HEAD
+现有的蛋白质亚细胞定位预测工具通常是从蛋白质的氨基酸序列中提取出一些特征，将序列转化为数值向量，再用机器学习模型进行预测。如目前最广泛使用的适用于真核生物蛋白质的WoLF PSORT软件，将蛋白质的氨基酸组成作为特征，以k-nearest neighbor算法给出与输入蛋白最相似的32个蛋白质的细胞亚定位。（Horton et al., 2007）我们认为，现有的预测工具还具有一定的提升空间。首先，提取的序列特征未必能充分反映蛋白质与训练任务相关的性质。其次，目前的预测都仅仅使用了蛋白质本身的信息，而没有考虑到蛋白质间的相互作用。考虑到蛋白质发生相互作用必须在空间上接近，蛋白质的相互作用信息很有可能可以提高亚细胞定位的预测准确度。因此，我们希望用神经网络将蛋白质序列embedding为数值向量，与蛋白质的相互作用信息结合，建立图卷积神经网络模型来进行蛋白质亚细胞定位的预测，以期能达到更好的预测功效。\\
+=======
 现有的蛋白质亚细胞定位预测工具通常是从蛋白质的氨基酸序列中提取出一些特征，将序列转化为数值向量，再用机器学习模型进行预测。如目前最广泛使用的适用于真核生物蛋白质的WoLF PSORT软件，将蛋白质的氨基酸组成作为特征，以k-nearest neighbor算法给出与输入蛋白最相似的32个蛋白质的细胞亚定位。（这里要插入一篇引用）我们认为，现有的预测工具还具有一定的提升空间。首先，提取的序列特征未必能充分反映蛋白质与训练任务相关的性质。其次，目前的预测都仅仅使用了蛋白质本身的信息，而没有考虑到蛋白质间的相互作用。考虑到蛋白质发生相互作用必须在空间上接近，蛋白质的相互作用信息很有可能可以提高亚细胞定位的预测准确度。因此，我们希望用神经网络将蛋白质序列embedding为数值向量，与蛋白质的相互作用信息结合，建立图卷积神经网络模型来进行蛋白质亚细胞定位的预测，以期能达到更好的预测功效。
 （TODO: 是不是要加一下什么是蛋白，蛋白由20种氨基酸连接组成啥的，还有什么是亚细胞定位，序列与亚细胞定位的关系（motif，NLS, NES……）？）
 
 
+>>>>>>> 2883f63780276cfec90320e013c6e2a7bd499165
 
-\subsection{Single Index 模型}
-为了更好的预测被特别处理的可能性，我们采用半参数的方法来建立回归模型，进而得出因变量与协变量之间关系。模型的基本假设如下：
+\section{数据收集与预处理}
 
-考虑 Binary Choice Model：
-$$ Y = \left\{
-\begin{array}{rcl}
-1     &      & {if \quad Y_i^{*}>0}\\
-0     &      & {if \quad Y_i^{*}\leq0}\\
-\end{array} \right. $$
+蛋白质互作网络数据来自STRING数据库，我们从人类蛋白的相互作用中筛选了作用模式为物理相互作用（physical）的蛋白对，用于后续模型训练。
 
-其中$Y_i^{*}$是中间变量，与协变量相关。
-\[ Y_i^{*}=\alpha+X'\beta+\epsilon_i \]
+蛋白亚细胞的定位和氨基酸序列数据来自UniProtKB/Swiss-Prot数据库：
+其中，对于亚细胞定位注释，我们只保留存在文献支持的条目，经过滤后的定位注释有213种，大部分定位对应的蛋白都非常少（TODO: figure），我们只取蛋白数最多的11种亚细胞定位，包括细胞核(Nucleus)，细胞质(Cytoplasm)，细胞膜(Cell membrane)，膜(Membrane)，外泌(Secreted)，细胞骨架(Cytoskeleton)，细胞凸起(Cell projection)，内质网膜(Endoplasmic reticulum membrane)，细胞连接(Cell junction)，线粒体(Mitochondrion)和高尔基体(Golgi apparatus)；需要说明的是，这些亚细胞定位并不是互斥的，同一个蛋白可能会在多个位置出现并发挥功能。
 
-假设$F_\epsilon$是随机项$\epsilon$的累积分布函数，则有：
-\begin{align*}
-E(Y|x)&=P(Y=1|x)=P(Y_i^{*}>0|x)\\
-&=P(\epsilon_i>-(\alpha+X'\beta))=1-F_\epsilon(-(\alpha+X'\beta))\\
-&=m(\alpha+X'\beta)
-\end{align*}
+\begin{figure}[H]
+	\centering\includegraphics[scale=0.7]{../data/summary/loc.png}
+\end{figure}
+Figure 1.各亚定位的蛋白质数量分布。
 
-值得说明的是，$F_\epsilon$未知，是我们模型待估计的参量，以上模型由协变量的线性组合复合一个函数组成，称为半参数 single index 模型。
+对于氨基酸序列，我们丢掉了含有特殊氨基酸（硒半胱氨酸，Selenocysteine, U）的序列，所有序列只包含20种基本氨基酸；此外，相似序列在训练集和测试集中分别出现可能导致模型的预测性能被高估，因此我们使用cd-hit工具对序列进行了聚类，相似度高于90\%的序列作为一个类，只取其中一条序列作为代表，保证剩下的序列两两之间相似性低于90\%；最后，为了加快计算速度，我们只保留长度小于2000氨基酸的序列。
+经过上述筛选之后，同时满足亚细胞定位和序列过滤条件，且在STRING蛋白互作网络中的担保共有7591条，构成模型评估的核心数据集。
 
-更一般的半参数模型有如下形式：
-\[  Y=g(x'\beta_0)+u  \]
-\[ E(u|X)=0 \]
+\begin{figure}[H]
+	\centering\includegraphics[scale=0.5]{../data/summary/seqlen.pdf}
+\end{figure}
+Figure 2.核心数据集蛋白质长度分布。
 
-对于我们用到的半参数Binary Choice Model模型，有：
-\[ E(Y|x)=g(x'\beta_0)=m(\alpha+X'\beta) \]
-$$i.e. \qquad g(t)=m(\alpha+t)$$
-其中$\beta$是未知的参数，$g()$是连接函数，需要我们去估计。\\
+\section{模型构建}
 
-根据高级计量经济专题讲义的内容，关于参数的估计方法大致有两种思路:
-\begin{itemize}
-	\item 当g的形式已知时，可以很简单的用非线性回归来给出$\beta$的估计。进一步，此时的问题即是广义线性模型的范畴，我们可以用迭代算法给出结果，并做出统计推断和分析解释。
-	\item 当g的形式未知时，不妨用kernel methods来估计$g()$的形式。估计的方法有Ichimura’s Estimator, Average Derivative estimator 等。
-	\item 对于Binary Choice Model, Klein \& Spady’s Estimator, Lewbel’s Estimator, Manski’s Maximum Score Estimator, Horowitz’s Smoothed Maximum Score Estimation, Han’s Maximum Rank Estimator 等方法均有可能派的上用场。
-\end{itemize}
+\subsection{特征提取}
 
-在此例中，我们采用 Klein \& Spady’s Estimator， 即
-$$\hat{\beta}_{KS}= \arg \max \mathbb{L} (\beta) $$
-$$\mathbb{L} (\beta)=\sum (1-Y_{i})\ln (1-\hat{g}(x_{i}\beta))+\sum Y_{i}\ln (\hat{g}(x_{i}\beta)) $$
+蛋白的亚细胞定位与其氨基酸序列有关，因此我们首先从氨基酸序列抽取可用的数据特征，一种传统特征提取方式是kmer频率，即根据蛋白质的氨基酸序列中所有长度为$k$的子片段出现的频率来作为该蛋白质的特征。氨基酸种类为20种，所以特征的维数为$20^k$，这里我们选取$k=3$，得到8000维的稀疏特征。\\
 
-通过R中的np包可以实现上述算法，若把所有7个变量放入模型中，得到的结果和分析如下：
-\begin{enumerate}[(1)]
-	\item 若取$\tau=0.5$，648个0分类正确的有648个，36个1分类正确的有3个，总体正确率95.17\%
-	\item ASSET与SHARE的系数并不显著 
-\end{enumerate}
+参考现有基于CNN的生物序列预测模型 (Alipanahi, B. et al., 2015; Zhou, J. $\&$ Troyanskaya, O.G., 2015)，我们也尝试使用CNN来学习氨基酸序列中的motif，首先，每种氨基酸被编码成20维的one-hot向量（第$i$维为1代表这是第$i$种氨基酸），在此基础上，长度为$L$的蛋白（由$L$个氨基酸组成），可以表示成$L\times 20$的矩阵，类比图像数据相当于蛋白是有20个通道的一维“图像”；由于计算效率的原因，CNN一般要求输入具有相同的大小，而蛋白序列的长度是不确定的，因此我们以数据集中最长的蛋白为标准（长度<2000，见“数据收集与预处理”），在其他蛋白末尾补零，得到相同长度作为卷积输入，进行"valid"模式的卷积，并使用ReLU激活函数，只输出正值；在池化层，再按照序列长度屏蔽补零位置的信号（主要屏蔽补零边界上的信号），池化策略方面，我们使用全局最大和全局求和的折中，取$k$个最大值求和作为输出，这样使得池化输出不会受到蛋白长度的影响，同时又能反映相同序列motif多次出现的剂量效应。\\
 
-若改变临界值 $\tau$,可提高将1分类正确的数目，并且同时由此带来0错误的数目的略有增加，但是相较GLM结果相比有很大的提升，结果如表 \ref{tab:tab1} 所示。\\
-\begin{table}[h]
-	\centering
-	\caption{Full Single Index Model}\label{tab:tab1}
-	\begin{tabular}{|l|c|c|c|c|c|}
-		\hline
-		$\tau$ &  0.5 & 0.4 & 0.3 & 0.2& 0.1 \\
-		\hline
-		\text{Correct} 1 & 3  & 3 &  4 & 10 &24    \\ \hline
-		\text{Correct} 0 & 648 & 648 & 647  & 634 & 557   \\ \hline
-		\text{Wrong}  1 & 33  & 33 & 32  & 26 &  12  \\ \hline
-		\text{Wrong} 0 & 0  & 0 & 1  & 14 &  91  \\ \hline
-		\text{TCR} & 95.17\%  &  95.17\%  &  95.17\%  & 94.15\% &  84.94\%  \\
-		\hline 
-	\end{tabular}
-\end{table}
+我们尝试了两种基于CNN的蛋白序列特征提取方法，第一种是在训练集上进行有监督学习，第二种是在更大的无标签数据集上进行无监督学习；有监督学习比较常规，在池化层后面使用全连接层进行亚细胞定位预测，然后将倒数第二个全连接层的输出作为提取到的序列特征；无监督学习策略类似于噪音对比估计(noise contrastive estimation)，具体做法是按照数据集中20种氨基酸的出现频率，随机生成氨基酸序列，随机序列的长度和真实序列一一对应，然后让CNN学习区分真实的蛋白序列和随机序列，这样我们期望CNN的卷积层能抓取到只有真实蛋白中高频出现的序列motif，可能与蛋白的生物学功能有关，其中就包括亚细胞定位，为了抓取尽可能多的motif，我们使用了较多卷积核，这样CNN学到的卷积核之间可能存在相关性，因此我们在CNN训练完成之后再使用一个变分自编码器VAE (Kingma, D.P. $\&$ Welling, M., 2013. Auto-Encoding Variational Bayes. arXiv.org, stat.ML.) 去拟合CNN池化层的输出，将VAE的隐变量作为最终序列特征，期望能得到信息更紧密的序列表示，具体来说，我们使用Gamma分布作为生成分布，模型的损失函数如下：
 
-考虑到上述模型中ASSET与SHARE的系数并不显著，我们把这两个协变量从模型中剔除，再次求解Single-Index模型，得到的结果和分析如下：
-\begin{enumerate}[(1)]
-	\item 若取$\tau=0.5$，648个0分类正确的有648个，36个1分类正确的有4个，总体正确率95.32\%，同全模型相比有一定的提升;
-	\item 采用同上相同的方法，若改变临界值 $\tau$, ，得到的结果如下表 \ref{tab:tab2} 所示：
-	\begin{table}[!htb]
-		\centering
-		\caption{Reduced Single Index Model}\label{tab:tab2}
-		\begin{tabular}{|l|c|c|c|c|c|}
-			\hline
-			$\tau$ &  0.5 & 0.4 & 0.3 & 0.2& 0.1 \\
-			\hline
-			\text{Correct} 1 & 4  & 8 &  9 & 14 &17    \\ \hline
-			\text{Correct} 0 & 648 & 637 & 636  & 634 & 582   \\ \hline
-			\text{Wrong} 1 & 32  & 27 & 22  & 26 &  19  \\ \hline
-			\text{Wrong} 0 & 0  & 11 & 12  & 14 &  66  \\ \hline
-			\text{TCR} & 95.32\%  &  94.29\%  &  94.44\%  & 95.03\% &  87.57\%  \\
-			\hline 
-		\end{tabular}
-	\end{table}
-\end{enumerate}
-对比以上两个模型，我们可以得到以下结论：
-\begin{enumerate}[a.]
-	\item 对于全模型，降低 $\tau$ 的值可以提高1预测的准确性，但随之而来的代价是0预测错误率提高。具体来说，$\tau$ 值从0.5下降到0.2时， 预测的结果变化不大，但是从0.2将到0.1时，预测结果有着较大的变化，1的预测正确率显著提高，但是随之而来的代价是总体预测正确率的下降。
-	\item 对于降阶模型，同全模型一样随着$\tau$的降低，1预测的准确性提高，0预测的准确性降低。但是，同全模型不同的是，随着$\tau$的降低，
-	模型的预测结果变化比较均匀。 
-\end{enumerate}
-
+<<<<<<< HEAD
+=======
 \section{方法}
 
 \subsection{数据收集与预处理}
@@ -237,6 +184,7 @@ $$\mathbb{L} (\beta)=\sum (1-Y_{i})\ln (1-\hat{g}(x_{i}\beta))+\sum Y_{i}\ln (\h
 蛋白的亚细胞定位与其氨基酸序列有关，因此我们首先从氨基酸序列抽取可用的数据特征，一种传统特征提取方式是kmer频率(TODO: lix?)；
 参考现有基于CNN的生物序列预测模型 (Alipanahi, B. et al., 2015. Predicting the sequence specificities of DNA- and RNA-binding proteins by deep learning. Nature Biotechnology, 33(8), pp.831–838. Zhou, J. & Troyanskaya, O.G., 2015. Predicting effects of noncoding variants with deep learning-based sequence model. Nature Methods, 12(10), pp.931–934.)，我们也尝试使用CNN来学习氨基酸序列中的motif，首先，每种氨基酸被编码成20维的one-hot向量（第i维为1代表这是第i种氨基酸），在此基础上，长度为L的蛋白（由L个氨基酸组成），可以表示成L*20的矩阵，类比图像数据相当于蛋白是有20个通道的一维“图像”；由于计算效率的原因，CNN一般要求输入具有相同的大小，而蛋白序列的长度是不确定的，因此我们以数据集中最长的蛋白为标准（长度<2000，见“数据收集与预处理”），在其他蛋白末尾补零，得到相同长度作为卷积输入，进行"valid"模式的卷积，并使用ReLU激活函数，只输出正值；在池化层，再按照序列长度屏蔽补零位置的信号（主要屏蔽补零边界上的信号），池化策略方面，我们使用全局最大和全局求和的折中，取k个最大值求和作为输出，这样使得池化输出不会受到蛋白长度的影响，同时又能反映相同序列motif多次出现的剂量效应。
 我们尝试了两种基于CNN的蛋白序列特征提取方法，第一种是在训练集上进行有监督学习，第二种是在更大的无标签数据集上进行无监督学习；有监督学习比较常规，在池化层后面使用全连接层进行亚细胞定位预测，然后将倒数第二个全连接层的输出作为提取到的序列特征；无监督学习策略类似于噪音对比估计(noise contrastive estimation)，具体做法是按照数据集中20种氨基酸的出现频率，随机生成氨基酸序列，随机序列的长度和真实序列一一对应，然后让CNN学习区分真实的蛋白序列和随机序列，这样我们期望CNN的卷积层能抓取到只有真实蛋白中高频出现的序列motif，可能与蛋白的生物学功能有关，其中就包括亚细胞定位，为了抓取尽可能多的motif，我们使用了较多卷积核，这样CNN学到的卷积核之间可能存在相关性，因此我们在CNN训练完成之后再使用一个变分自编码器VAE (Kingma, D.P. & Welling, M., 2013. Auto-Encoding Variational Bayes. arXiv.org, stat.ML.) 去拟合CNN池化层的输出，将VAE的隐变量作为最终序列特征，期望能得到信息更紧密的序列表示，具体来说，我们使用Gamma分布作为生成分布，模型的损失函数如下：
+>>>>>>> 2883f63780276cfec90320e013c6e2a7bd499165
 $$-\mathcal L(\theta, \phi) = \mathbb E_{z \sim q(z|x;\phi)} [\log p(x|z;\theta)] - KL(q(z|x;\phi) \parallel p(z))$$
 其中，
 $$p(z)=\mathcal N(0, I)$$
@@ -245,6 +193,8 @@ $$KL(q(z|x;\phi) \parallel p(z)) = \frac 1 2 \sum_i (\mu_{i,x}^2 + \sigma_{i,x}^
 $$\log p(x|z;\theta)=\alpha_z \cdot\ log \beta - \log \Gamma(\alpha_z) + (\alpha_z - 1) \cdot \log x - \beta \cdot x$$
 后验分布的$\mu_x$, $\sigma_x^2$由$\theta$参数化的编码器网络实现，生成分布的$\alpha_z$由$\phi$参数化的解码器网络实现，$\beta$固定为定值，对$q(z|x;\phi)$的期望用reparameterization trick来计算;
 为了公平，有监督和无监督序列特征都设定为100维。
+<<<<<<< HEAD
+=======
 
 在上面得到的数据特征基础上，我们分别用全连接层和图卷积层构建预测网络，最终输出$p \in \mathbb R^J$各类别为阳性的概率，这里各类别没有互斥性，有监督损失函数使用的是$J$个二分类交叉熵的和：
 $$\mathcal L(\theta) = \sum_i^N w_i \sum_j^{J} y_j\cdot \log p_j + (1-y_j)\cdot \log (1-p_j) $$
@@ -255,62 +205,60 @@ $$w_i=y_i \cdot (\frac N^++N^- 2N^+) + (1-y_i) \cdot (\frac N^++N^- 2N^-)$$
 
 此外，为了评估蛋白质相互作用信息与亚细胞定位的关系，我们建立了一个不需要任何特征，仅依赖于蛋白质相互作用信息的预测模型，称之为GN（graph-neighbor）模型。对训练集或测试集中的任一蛋白质，我们根据训练集中与它有相互作用的蛋白质中具有某定位的蛋白质所占的比例来作为它具有该定位的概率，如果该蛋白质在训练集中没有邻居，则以整个训练集中具有该定位的蛋白质所占的比例作为其具有该定位的概率。
 
+>>>>>>> 2883f63780276cfec90320e013c6e2a7bd499165
 
+\subsection{模型训练}
 
+<<<<<<< HEAD
+在上面得到的数据特征基础上，我们分别用全连接层和图卷积层构建预测网络，最终输出$p \in \mathbb R^J$各类别为阳性的概率，这里各类别没有互斥性，有监督损失函数使用的是$J$个二分类交叉熵的和：
+$$\mathcal L(\theta) = \frac{1}{N} \sum_{i=1}^N \sum_{j=1}^{J} w_j^{(i)} [y_j^{(i)}\cdot \log p_j^{(i)} + (1-y_j^{(i)})\cdot \log (1-p_j^{(i)})] $$
+其中$w_j^{(i)}$是样本权重，为了平衡不同类别的样本，我们按照训练集中阳性和阴性的比例来给两种样本分别加权：
+$$w_j^{(i)}=y_j^{(i)} \cdot (\frac {N_j^+ + N_j^-} {2N_j^+}) + (1-y_j^{(i)}) \cdot (\frac {N_j^+ +N_j^-} {2N_j^-})$$
+=======
 采用 Single-Index 模型较GLM相比已经有了很大的进步，我们继续尝试一些机器学习的方法对数据进行建模。
+>>>>>>> 2883f63780276cfec90320e013c6e2a7bd499165
 
-支持向量机（SVM）是一种应用广泛的分类方法，其原理是在高维或无限维空间中构造超平面或超平面集合，使得分类边界距离最近的训练数据点尽可能的远，如下图所示：
+最后，我们使用5折交叉验证来进行模型评估，对于需要验证集的模型，从训练集中再随机抽取10\%作为验证集。\\
+
+此外，为了评估蛋白质相互作用信息与亚细胞定位的关系，我们建立了一个不需要任何特征，仅依赖于蛋白质相互作用信息的预测模型，称之为GN（graph-neighbor）模型。对训练集或测试集中的任一蛋白质，我们根据训练集中与它有相互作用的蛋白质中具有某定位的蛋白质所占的比例来作为它具有该定位的概率，如果该蛋白质在训练集中没有邻居，则以整个训练集中具有该定位的蛋白质所占的比例作为其具有该定位的概率。
+
+\section{实验结果与讨论}
+
+各模型在11个细胞亚定位中的5折交叉验证AUC值如图3所示。可以看出，在所有细胞亚定位中，使用蛋白质互作信息的GCN模型的表现普遍高于未使用互作信息的神经网络模型。在所有模型中，基于有监督学习的CNN得到的特征进行训练的GCN模型具有最佳的预测功效。有监督学习的CNN得到的特征要优于使用VAE得到的特征，二者都优于3mer频率的特征。考虑到有监督学习更容易提取与任务相关联的特征，基于3mer频率的特征无法捕捉蛋白质的氨基酸序列中的长程相互作用信息，这一结果是符合我们的预期的。
+
 \begin{figure}[H]
-	\centering\includegraphics[scale=0.3]{aic-m1.pdf}
+	\centering\includegraphics[scale=0.7]{../result/test_performance_AUC.pdf}
 \end{figure}
-\begin{itemize}
-	\item 称训练样本是线性可分的，如果存在决策超平面 $w\cdot x+b=0 $，使得以
-	下两式成立 ：
-	$$w\cdot x_{i}+b\geq 1 \quad\text{for}\quad y_{i}=1 $$
-	$$w\cdot x_{i}+b\leq -1 \quad\text{for\quad} y_{i}=-1 $$
-	\item 称决策超平面是最优的，如果训练集到该超平面的最小距离最大。
-\end{itemize}
+Figure 3. 各模型在11种细胞亚定位上的验证AUC分布。\\
 
-线性最优分离超平面相当于在约束条件 $y_{i}(w\cdot x_{i}+b) \geq 1$ 下，找到 $\frac{2}{|w|}$ 的最大值。此最优化问题等价于在约束条件 $y_{i}(w\cdot x_{i}+b) \geq 1$ 下，求$ \frac{||w ||^{2}}{2}$	的最小值。我们可以采用ADMM算法对此问题进行求解。即
-$$\min \frac{1}{2}  \sum_{i=1}^{n}\sum_{j=1}^{n} \alpha_{i}\alpha_{j}y_{i}y_{j}x_{i}^{T}x_{j} - \sum_{i=1}^{n}\alpha_{i}$$
-$$\sum_{i=1}^{n}\alpha_{i}y_{i}=0,\quad \alpha_{i} \geq 0,\quad 1\leq i \leq n $$
+一个值得注意的现象是，仅依赖蛋白质互作信息的GN模型对于某些定位表现出较好的预测功效（如Nucleus，Cell projection，Golgi apparatus等），而对于另一些定位预测功效较差（如Membrane，Secreted，Endoplasmic reticulum membrane）。我们发现，预测功效较好的多是基质区域，而预测功效较差的则是膜结构和分泌型蛋白。我们认为这种差异来自于不同定位的蛋白相互作用的对象不同。在核内或细胞器基质的蛋白更多地与同一基质内的蛋白发生相互作用以发挥功能，而膜蛋白与胞质内蛋白或其它蛋白的分泌蛋白发生相互作用的比例更高。尽管如此，整合了蛋白质序列特征和互作信息的GCN模型依然可以表现出比仅使用序列特征的神经网络模型更佳的预测功效。我们认为，尽管蛋白质的相互作用并不等价于它们的共定位，但互作信息依然蕴含了与蛋白质身份和亚定位有关的序列信息。我们推测GCN模型通过将关联的隐含层输出进行线性组合，强化了这一部分特征的权重，从而提升了模型的预测功效。这与Kipf在他们的工作中所提出的观念相吻合，即GCN模型并不需要图中相邻节点具有相似的性质这一强假设。
 
-尽管原始问题可能是在有限维空间中陈述的，但用于区分的集合在该空间中往往线性不可分。为此，有人提出将原有限维空间映射到维数高得多的空间中，在该空间中进行分离可能会更容易，这就是Kernel-SVM算法。下图用一个简单的例子生动形象的描述了这一算法的思想：
-\begin{figure}[H]
-	\centering\includegraphics[scale=0.2]{aic-m2.pdf}
-\end{figure}
+\section{总结}
 
-线性SVM的算法求解依赖向量之间的内积$x_{i}^{T}x_{j}$, 而Kernel-SVM的算法是用一个映射$\phi:x\rightarrow\phi(x)$ 把数据映射到高维空间，之后用核函数的形式替代两个向量的内积，即
-$$K(x_{i},x_{j})=\phi(x_{i})^{T}\phi(x_{j}) $$
-
-这里的“Kernel”与我们在非参数统计课程中所学的“Kernel-Smoothing”、\\“Kernel-Estimation”中的“Kernel”意义相同。非参数方法中的“Kernel”，实际上是距离函数，$\frac{1}{n}\sum K_{h}(x_{i}-x)$ 就是$x$附近点到$x$距离的加权和。而内积就是希尔伯特空间中对距离的推广。此问题用数学语言描述出来即为：在由$K$作为再生核生成的再生希尔伯特空间(RKHS)中找到合适的函数，使得变换后的数据可以被该函数分割成两部分。因为我们优化问题的空间是一个函数空间(RKHS),所以这是一种非参数方法。
-
-在此例中，我们采用多项式核函数，即$K(x,z)=<x,z> $, 其他常用的核函数还有：
-\begin{itemize}
-	\item 径向基函数(RBF): $K(x,z)=e^{-||x-z||^{2}/2\sigma} $
-	\item 双曲正切核函数：$K(x,z)=tanh(kx^{T}y+\theta) $
-\end{itemize}
-
-对于此问题的求解，只需把线性情况下的内积换成核函数，即：
-$$\min \frac{1}{2}  \sum_{i=1}^{n}\sum_{j=1}^{n} \alpha_{i}\alpha_{j}y_{i}y_{j}k(x_{i},x_{j}) - \sum_{i=1}^{n}\alpha_{i}$$
-$$\sum_{i=1}^{n}\alpha_{i}y_{i}=0,\quad \alpha_{i} \geq 0,\quad 1\leq i \leq n $$
-采用此方法，得到的结果648个0全部分类正确，36个1分类正确6个；可见远远优于之前提出的统计模型方法，这是现阶段我们得到的最好结果。
-
-\section{实验结果}
-
-\section{总结与讨论}
-在这篇文章中，我们对684家上市公司的股票进行ST预测，先采用GLM模型后发现该数据呈现非参数性，故采用半参数的Single-Index的模型再次对数据进行拟合，得到了比GLM较好的结果；最后采用机器学习之Kernel-SVM算法再次对数据进行分析。由于我们所选取的数据中1的值较少，再加上中国股市受很多方面因素特别是政策和国内形势的影响，造成了我们对1的预测成功率最高只有50\%。\\
-
+<<<<<<< HEAD
+我们使用了Kipf等人发展的GCN模型，结合蛋白质互作网络与基于CNN有监督学习提取的蛋白质序列特征，在蛋白质的11种主要细胞亚定位的预测问题中取得了较好的预测功效。通过与仅基于蛋白质互作网络的GN模型进行比较，表明GCN不需要关联节点之间具有强相似性，具有更强的泛用性。
+=======
 但是通过上述过程的分析，我们不难发现采用非参数的方法可以更好的拟合模型，而付出的代价则是算法时间复杂度的增加。本例中有7个协变量，若采用普通非参数的方法很难得到有效的求解，故采用Single-Index进行降维；并且，采用Single-Index得到的结果也更加灵活，我们可以采用降低阈值的方法来估计出更多正确的1。总之，通过对这个问题的探究，我们对比了参数模型和非参数模型的优劣，学习掌握了许多对之后的学习研究有帮助的方法;特别是第一次处理真实数据的经历让我们意识到了理论应用于实践过程中的鸿沟，想必也会为将来的学习工作提供宝贵的经验。
 \cite{kipf2016semi}
+>>>>>>> 2883f63780276cfec90320e013c6e2a7bd499165
 
+\section{参考文献}
+\begin{enumerate}[(1)]
+	\item Kipf $\&$ Welling (ICLR 2017), Semi-Supervised Classification with Graph Convolutional Networks.
+	\item Horton, Paul, et al. "WoLF PSORT: protein localization predictor." Nucleic acids research 35.suppl-2 (2007): W585-W587.
+	\item Alipanahi, B. et al., 2015. Predicting the sequence specificities of DNA- and RNA-binding proteins by deep learning. Nature Biotechnology, 33(8), pp.831–838.
+	\item Zhou, J. $\&$ Troyanskaya, O.G., 2015. Predicting effects of noncoding variants with deep learning-based sequence model. Nature Methods, 12(10), pp.931–934.
+	\item David K. Hammond, Pierre Vandergheynst, and Re ́mi Gribonval. Wavelets on graphs via spectral graph theory. Applied and Computational Harmonic Analysis, 30(2):129–150, 2011.
+	\item Michae ̈l Defferrard, Xavier Bresson, and Pierre Vandergheynst. Convolutional neural networks on graphs with fast localized spectral filtering. In Advances in neural information processing systems (NIPS), 2016.
+	\item 
+	Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. Deep residual learning for image recog- nition. In IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2016.
 
+\end{enumerate}
+ 
 %%%%%%%  参考文献
-\nocite{*}   % 显示参考文献列表
-\bibliographystyle{IEEEtranN}
-\bibliography{references}
-
-
+%\nocite{*}   % 显示参考文献列表
+%\bibliographystyle{IEEEtranN}
+%\bibliography{references}
 
 
 \end{document}
