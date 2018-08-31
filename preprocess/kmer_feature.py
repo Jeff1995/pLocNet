@@ -9,7 +9,7 @@ import pickle as pkl
 import gzip
 
 
-f = open( '../data/supervised_data/sample_id.pkl','rb')
+f = open( '../data/preprocessed/sample_id.pkl','rb')
 sample = pkl.load(f)
 f.close()
 
@@ -44,7 +44,7 @@ def generative_kmer_feature(k):
 
 def save_feature_kmer(k):
     feature = generative_kmer_feature(k)
-    with h5py.File('../data/kmer_feature/feature_%dmer.h5' % k, 'w') as f:
+    with h5py.File('../data/preprocessed/feature_%dmer.h5' % k, 'w') as f:
         opts = {
             "compression": "gzip",
             "compression_opts": 9
