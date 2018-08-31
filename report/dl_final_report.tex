@@ -243,7 +243,7 @@ $$p(z)=\mathcal N(0, I)$$
 $$q(z|x;\phi)=\mathcal N(\mu_x, diag(\sigma_x^2))$$
 $$KL(q(z|x;\phi) \parallel p(z)) = \frac 1 2 \sum_i (\mu_{i,x}^2 + \sigma_{i,x}^2 - \log \sigma_{i,x}^2 - 1)$$
 $$\log p(x|z;\theta)=\alpha_z \cdot\ log \beta - \log \Gamma(\alpha_z) + (\alpha_z - 1) \cdot \log x - \beta \cdot x$$
-后验分布的$\mu_x$, $\sigma_x^2$由$\theta$参数化的编码器网络实现，$生成分布的\alpha_z$由$\phi$参数化的解码器网络实现，$\beta$固定为定值，对$q(z|x;\phi)$的期望用reparameterization trick来计算;
+后验分布的$\mu_x$, $\sigma_x^2$由$\theta$参数化的编码器网络实现，生成分布的$\alpha_z$由$\phi$参数化的解码器网络实现，$\beta$固定为定值，对$q(z|x;\phi)$的期望用reparameterization trick来计算;
 为了公平，有监督和无监督序列特征都设定为100维。
 
 在上面得到的数据特征基础上，我们分别用全连接层和图卷积层构建预测网络，最终输出$p \in \mathbb R^J$各类别为阳性的概率，这里各类别没有互斥性，有监督损失函数使用的是$J$个二分类交叉熵的和：
