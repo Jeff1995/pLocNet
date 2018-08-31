@@ -230,7 +230,7 @@ $$\mathbb{L} (\beta)=\sum (1-Y_{i})\ln (1-\hat{g}(x_{i}\beta))+\sum Y_{i}\ln (\h
 蛋白亚细胞的定位和氨基酸序列数据来自UniProtKB/Swiss-Prot数据库：
 其中，对于亚细胞定位注释，我们只保留存在文献支持的条目，经过滤后的定位注释有213种，大部分定位对应的蛋白都非常少（TODO: figure），我们只取蛋白数最多的11种亚细胞定位，包括细胞核(Nucleus)，细胞质(Cytoplasm)，细胞膜(Cell membrane)，膜(Membrane)，外泌(Secreted)，细胞骨架(Cytoskeleton)，细胞凸起(Cell projection)，内质网膜(Endoplasmic reticulum membrane)，细胞连接(Cell junction)，线粒体(Mitochondrion)和高尔基体(Golgi apparatus)；需要说明的是，这些亚细胞定位并不是互斥的，同一个蛋白可能会在多个位置出现并发挥功能；
 对于氨基酸序列，我们丢掉了含有特殊氨基酸（硒半胱氨酸，Selenocysteine, U）的序列，所有序列只包含20种基本氨基酸；此外，相似序列在训练集和测试集中分别出现可能导致模型的预测性能被高估，因此我们使用cd-hit工具对序列进行了聚类，相似度高于90\%的序列作为一个类，只取其中一条序列作为代表，保证剩下的序列两两之间相似性低于90\%；最后，为了加快计算速度，我们只保留长度小于2000氨基酸的序列（TODO: figure）；
-经过上述筛选之后，同时满足亚细胞定位和序列过滤条件，且在STRING蛋白互作网络中的担保共有7591条，构成模型评估的核心数据集。
+经过上述筛选之后，同时满足亚细胞定位和序列过滤条件，且在STRING蛋白互作网络中的蛋白共有7591条，构成模型评估的核心数据集。
 
 \subsection{模型构建}
 
