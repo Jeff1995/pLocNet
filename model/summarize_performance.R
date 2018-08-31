@@ -126,7 +126,8 @@ test_performance_df <- compute_performance(train_performance_df, mode = "test")
 gp_theme <- theme(
     axis.text.x = element_blank(),
     axis.title.x = element_blank(),
-    axis.ticks.x = element_blank()
+    axis.ticks.x = element_blank(),
+    legend.position = c(0.85, 0.18)
 )
 
 plot_performance <- function(performance_df, path, prefix = "") {
@@ -137,7 +138,7 @@ plot_performance <- function(performance_df, path, prefix = "") {
             geom_boxplot(alpha = 0.5) + facet_wrap(~loc) +
             scale_y_continuous(name = variable) + gp_theme
         ggsave(sprintf("%s/%s_performance_%s.pdf", path, prefix, variable),
-               gp, width = 10, height = 8)
+               gp, width = 8.5, height = 8)
     }
 }
 
