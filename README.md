@@ -8,6 +8,7 @@ Protein subcellular localization prediction using graph convolutional network an
 * `/data` contains preprocessed data and some data statistics.
 * `/model` contains model definitions, scripts to run models and a performance evaluation pipeline.
 * `/result` contains summary plots for model performance.
+* `/report` contains latex source and pdf rendering of project report
 
 ## Requirements
 
